@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { MealItem } from "../types";
 import { Camera, Sparkles, Upload, FileText, X, Check, ArrowRight, Salad, Copy } from "lucide-react";
+import { GoogleGenAI } from "@google/genai";
 
 interface AIFoodAnalyzerProps {
   onAddParsedMeals: (mealCategory: string, items: MealItem[], groupName: string, saveToLibrary: boolean) => void;
@@ -157,6 +158,131 @@ JSON 陣列中的每個物件結構如下（數值若無法估算請寫為 0，�
     }, 2000);
 
     try {
+      // 🚀 優化：若使用者輸入了個人金鑰，則「直接在瀏覽器前端呼叫 Gemini API」！
+      // 這對於 GitHub Pages 等「沒有後端伺服器」的靜態網站環境至關重要，能完全離線或純前端完成 AI 解析。
+      if (customApiKey && customApiKey.trim()) {
+        setAnalysisStatus("正在使用您設定的專屬金鑰直接進行 AI 分析...");
+        const aiInstance = new GoogleGenAI({
+          apiKey: customApiKey.trim(),
+        });
+
+        const systemInstruction = `You are a professional dietitian and food analysis expert. 
+Analyze the provided text description or image of a meal/food, estimate the ingredients and their nutritional values accurately.
+Always translate the output food names into Traditional Chinese (zh-TW) as used in Taiwan (e.g. 滷肉飯, 味噌湯).
+Calculate:
+- kcal (calories in kcal)
+- protein (in grams)
+- carb (carbohydrates in grams)
+- fat (fat in grams)
+- fiber (dietary fiber in grams)
+- sugar (sugar in grams)
+- sodium (sodium in milligrams)
+- amount (estimated weight in grams, or null/0 if not clearly estimable)
+
+Ensure all values are realistic based on standard food databases.
+Provide the response strictly as a JSON array matching the requested schema.`;
+
+        const contents: any[] = [];
+        if (imageBase64) {
+          contents.push({
+            inlineData: {
+              mimeType: imageMimeType || "image/jpeg",
+              data: imageBase64,
+            },
+          });
+        }
+        
+        contents.push({
+          text: inputText || "請直接辨識並分析此相片中的餐點品項",
+        });
+
+        const response = await aiInstance.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "ARRAY" as any,
+              description: "List of analyzed food items in this meal",
+              items: {
+                type: "OBJECT" as any,
+                properties: {
+                  name: {
+                    type: "STRING" as any,
+                    description: "Name of the food item in Traditional Chinese (Traditional Chinese characters only)",
+                  },
+                  amount: {
+                    type: "NUMBER" as any,
+                    description: "Estimated weight in grams (g)",
+                  },
+                  kcal: {
+                    type: "NUMBER" as any,
+                    description: "Calories (kcal)",
+                  },
+                  protein: {
+                    type: "NUMBER" as any,
+                    description: "Protein (g)",
+                  },
+                  carb: {
+                    type: "NUMBER" as any,
+                    description: "Carbohydrates (g)",
+                  },
+                  fat: {
+                    type: "NUMBER" as any,
+                    description: "Fat (g)",
+                  },
+                  fiber: {
+                    type: "NUMBER" as any,
+                    description: "Dietary Fiber (g)",
+                  },
+                  sugar: {
+                    type: "NUMBER" as any,
+                    description: "Sugar (g)",
+                  },
+                  sodium: {
+                    type: "NUMBER" as any,
+                    description: "Sodium (mg)",
+                  },
+                },
+                required: ["name", "kcal", "protein", "carb", "fat", "fiber", "sugar", "sodium"],
+              },
+            },
+          },
+        });
+
+        const text = response.text;
+        clearInterval(msgInterval);
+
+        if (text) {
+          const data = JSON.parse(text);
+          if (Array.isArray(data)) {
+            const itemsWithId = data.map((item: any, i: number) => ({
+              id: Date.now() + i,
+              name: item.name || "未命名食物",
+              kcal: Number(item.kcal) || 0,
+              protein: Number(item.protein) || 0,
+              carb: Number(item.carb) || 0,
+              fat: Number(item.fat) || 0,
+              fiber: Number(item.fiber) || 0,
+              sugar: Number(item.sugar) || 0,
+              sodium: Number(item.sodium) || 0,
+              amount: Number(item.amount) || null,
+            }));
+            setParsedItems(itemsWithId);
+            
+            if (inputText.trim()) {
+              setGroupName(inputText.trim().slice(0, 15));
+            } else {
+              setGroupName("AI 影像分析餐點");
+            }
+            return; // 成功在前端直接完成呼叫，直接返回
+          }
+        }
+        throw new Error("Direct client-side analysis returned empty or invalid response.");
+      }
+
+      // ─── 預設備用方式：呼叫後端伺服器 API ───
       const response = await fetch("/api/analyze-meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -167,6 +293,11 @@ JSON 陣列中的每個物件結構如下（數值若無法估算請寫為 0，�
           customApiKey: customApiKey,
         }),
       });
+
+      // 檢查是否因為在靜態網頁（如 GitHub Pages）找不到後端 API 而失敗
+      if (response.status === 404) {
+        throw new Error("STATIC_HOST_LIMIT: 404 Not Found");
+      }
 
       const data = await response.json();
       clearInterval(msgInterval);
@@ -197,7 +328,11 @@ JSON 陣列中的每個物件結構如下（數值若無法估算請寫為 0，�
       }
     } catch (err: any) {
       clearInterval(msgInterval);
-      alert("連線到 AI 分析伺服器時發生錯誤：" + err.message);
+      if (err.message && err.message.includes("STATIC_HOST_LIMIT")) {
+        alert("💡 貼心提醒：\n目前此網頁架設在 GitHub Pages 靜態網站平台，因此沒有後端伺服器可用。\n\n若您希望在此直接使用 AI 智慧辨識功能，請點擊網頁右上角的「設定」齒輪按鈕，並在「Gemini AI 智慧剖析金鑰」貼上您自己的個人 Gemini API Key 即可啟用前端直接辨識喔！");
+      } else {
+        alert("連線到 AI 分析伺服器時發生錯誤：" + err.message + "\n\n💡 提示：如果您在靜態網頁上（如 GitHub Pages）使用，請前往右上角「設定」配置您的個人 Gemini API 金鑰，系統將會直接在前端為您進行辨識！");
+      }
     } finally {
       setIsAnalyzing(false);
     }
