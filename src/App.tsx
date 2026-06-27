@@ -1032,7 +1032,7 @@ export default function App() {
   };
 
   return (
-    <div id="root" className="min-h-screen flex flex-col bg-[#050507] text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white pb-[70px] lg:pb-0 relative overflow-x-hidden">
+    <div id="root" className="min-h-screen flex flex-col bg-[#050507] text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white pb-[80px] lg:pb-0 relative overflow-x-hidden max-w-[480px] lg:max-w-none mx-auto w-full">
       
       {/* Premium Tech Dot Grid & Faint Ambient Light (Allows Glassmorphism to Blur and Stand Out) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#040406]">
@@ -1047,7 +1047,7 @@ export default function App() {
       </div>
       
       {/* Responsive Left Fixed Sidebar for Desktop / Bottom Nav for Mobile */}
-      <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:overflow-hidden relative z-10">
+      <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:overflow-hidden relative z-10 w-full">
         
         {/* Desktop Left Navigation Sidebar */}
         <nav className="hidden lg:flex flex-col w-[250px] bg-zinc-950/80 border-r border-white/10 backdrop-blur-2xl shrink-0 h-screen sticky top-0 p-5 justify-between relative z-20">
@@ -1137,7 +1137,7 @@ export default function App() {
         </nav>
 
         {/* Mobile Navigation Header */}
-        <header className="lg:hidden flex justify-between items-center bg-zinc-950/75 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-40">
+        <header className="lg:hidden flex justify-between items-center w-full max-w-[480px] mx-auto bg-zinc-950/75 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-40">
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-indigo-400" />
             <h1 className="text-sm font-black tracking-tight">健身飲食紀錄</h1>
@@ -1148,7 +1148,7 @@ export default function App() {
         </header>
 
         {/* Main Dashboard Panel */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:h-full lg:overflow-y-auto overflow-x-hidden">
+        <main className="flex-1 w-full p-4 sm:p-6 lg:p-8 lg:h-full lg:overflow-y-auto overflow-x-hidden">
           
           {/* Header Action / Date Navigator (Active only when activeTab is "today" or "history") */}
           {activeTab === "today" && (
@@ -1387,16 +1387,6 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-
-                      {/* AI Tracker Section (Real Gemini Powered Analyzer) */}
-                      <AIFoodAnalyzer 
-                        mealCategory={addModalCategory}
-                        customApiKey={settings.geminiApiKey}
-                        onAddParsedMeals={(cat, items, gTitle, saveToLib) => {
-                          addMealsToDay(cat, items, gTitle, saveToLib);
-                          alert(`🎉 智慧辨識成果已成功登錄至今日 ${cat} 紀錄！`);
-                        }}
-                      />
 
                       {/* Macronutrients Progress Grid */}
                       <div className="space-y-3">
@@ -2487,42 +2477,42 @@ export default function App() {
       </div>
 
       {/* ─── Bottom Navigation bar on Mobile ─── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-zinc-950/75 border-t border-white/10 backdrop-blur-xl z-40 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom,4px)] shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
+      <nav className="lg:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-zinc-950/90 border-t border-zinc-800/80 backdrop-blur-2xl z-40 flex items-center justify-between p-1.5 pb-[env(safe-area-inset-bottom,6px)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <button
           onClick={() => setActiveTab("today")}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold ${
-            activeTab === "today" ? "text-indigo-400" : "text-zinc-400"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "today" ? "bg-zinc-800 text-indigo-400" : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Flame className="w-5 h-5" />
-          今天
+          <Flame className="w-[20px] h-[20px]" />
+          <span className="text-[10px] font-bold tracking-wide">今日</span>
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold ${
-            activeTab === "history" ? "text-indigo-400" : "text-zinc-400"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "history" ? "bg-zinc-800 text-indigo-400" : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Calendar className="w-5 h-5" />
-          歷史趨勢
+          <Calendar className="w-[20px] h-[20px]" />
+          <span className="text-[10px] font-bold tracking-wide">歷史</span>
         </button>
         <button
           onClick={() => setActiveTab("foods")}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold ${
-            activeTab === "foods" ? "text-indigo-400" : "text-zinc-400"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "foods" ? "bg-zinc-800 text-indigo-400" : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Salad className="w-5 h-5" />
-          食物庫
+          <Salad className="w-[20px] h-[20px]" />
+          <span className="text-[10px] font-bold tracking-wide">食物庫</span>
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold ${
-            activeTab === "settings" ? "text-indigo-400" : "text-zinc-400"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "settings" ? "bg-zinc-800 text-indigo-400" : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <SettingsIcon className="w-5 h-5" />
-          設定
+          <SettingsIcon className="w-[20px] h-[20px]" />
+          <span className="text-[10px] font-bold tracking-wide">設定</span>
         </button>
       </nav>
 
@@ -2548,7 +2538,7 @@ export default function App() {
                   addModalTab === "quick" ? "bg-zinc-900 text-indigo-400 shadow-sm border border-zinc-800" : "text-zinc-400 hover:text-zinc-300"
                 }`}
               >
-                快速選取食物庫
+                選取食物庫
               </button>
               <button
                 onClick={() => setAddModalTab("manual")}
@@ -2556,12 +2546,33 @@ export default function App() {
                   addModalTab === "manual" ? "bg-zinc-900 text-indigo-400 shadow-sm border border-zinc-800" : "text-zinc-400 hover:text-zinc-300"
                 }`}
               >
-                手動填寫數據
+                手動填寫
+              </button>
+              <button
+                onClick={() => setAddModalTab("ai")}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                  addModalTab === "ai" ? "bg-zinc-900 text-indigo-400 shadow-sm border border-zinc-800" : "text-zinc-400 hover:text-zinc-300"
+                }`}
+              >
+                AI 影像辨識
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               
+              {/* TAB 3: AI FOOD ANALYZER */}
+              {addModalTab === "ai" && (
+                <AIFoodAnalyzer 
+                  mealCategory={addModalCategory}
+                  customApiKey={settings.geminiApiKey}
+                  onAddParsedMeals={(cat, items, gTitle, saveToLib) => {
+                    addMealsToDay(cat, items, gTitle, saveToLib);
+                    setShowAddModal(false);
+                    showToast(`🎉 智慧辨識成果已成功登錄至今日 ${cat} 紀錄！`, "success");
+                  }}
+                />
+              )}
+
               {/* TAB 1: QUICK ADD FROM FOOD LIBRARY */}
               {addModalTab === "quick" && (
                 <div className="space-y-4">
