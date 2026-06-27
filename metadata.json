@@ -1,0 +1,6 @@
+{
+  "name": "健身飲食紀錄 Dashboard",
+  "description": "具有 AI 智慧分析與高階體重、體脂、水分追蹤的健身飲食控制平台。整合 Gemini 3.5 支援拍照或文字自動分析營養素，並提供歷史趨勢圖表。",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
