@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { DayRecord, NutritionTargets, MealRecord, MealItem } from "../types";
+import React, { useState, useMemo } from "react";
+import { DayRecord, NutritionTargets, MealRecord, MealItem, MealGroup } from "../types";
 import { getDateString, formatFriendlyDate } from "../utils/nutrition";
 
 interface ChartsProps {
@@ -31,25 +31,31 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
     return sum;
   };
 
-  // 1. Calories Bar Chart (last 14 days)
-  const renderCalorieChart = () => {
-    const period = 14;
+  const periodCalorie = 14;
+  const calorieChartData = useMemo(() => {
     const data: { date: string; kcal: number }[] = [];
-    for (let i = period - 1; i >= 0; i--) {
+    for (let i = periodCalorie - 1; i >= 0; i--) {
       const dStr = getDateString(-i);
       data.push({
         date: dStr,
         kcal: getDayKcal(dStr),
       });
     }
+    return data;
+  }, [days, periodCalorie]);
 
+  // 1. Calories Bar Chart (last 14 days)
+  const renderCalorieChart = () => {
+    const data = calorieChartData;
     const maxKcal = Math.max(...data.map((d) => d.kcal), targets.kcal) * 1.15 || 2500;
     const chartHeight = 120;
-    const barWidthPct = 80 / period;
+    const barWidthPct = 80 / periodCalorie;
 
     return (
-      <div className="relative bg-white/[0.02] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-3xl p-4">
-        <h4 className="text-xs font-bold text-zinc-400 tracking-wider mb-4 uppercase">每日熱量消耗與目標 (近 14 天)</h4>
+      <div className="relative group h-full">
+        <div className="absolute -inset-1 rounded-3xl opacity-[0.2] blur-xl bg-gradient-to-br from-indigo-500/20 via-white/10 to-transparent group-hover:opacity-[0.4] group-active:opacity-[0.5] group-active:scale-95 transition-all duration-500 pointer-events-none" />
+        <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 h-full flex flex-col justify-between">
+            <h4 className="text-xs font-bold text-zinc-400 tracking-wider mb-4 uppercase">每日熱量消耗與目標 (近 14 天)</h4>
         
         <div className="relative h-[130px] w-full flex items-end justify-between border-b border-zinc-800 pb-1">
           {/* Target Line */}
@@ -104,8 +110,8 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
         {/* X Axis Labels */}
         <div className="flex justify-between text-[9px] text-zinc-400 font-mono mt-1">
           <span>{formatFriendlyDate(data[0].date)}</span>
-          <span>{formatFriendlyDate(data[Math.floor(period / 2)].date)}</span>
-          <span>{formatFriendlyDate(data[period - 1].date)}</span>
+          <span>{formatFriendlyDate(data[Math.floor(periodCalorie / 2)].date)}</span>
+          <span>{formatFriendlyDate(data[periodCalorie - 1].date)}</span>
         </div>
 
         {/* Hover Tooltip */}
@@ -122,18 +128,18 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
             <div className="text-[10px] text-zinc-400 text-center">{hoveredCalorie.date}</div>
           </div>
         )}
+        </div>
       </div>
     );
   };
 
-  // 2. Combined Trend Chart for both Weight and Bodyfat
-  const renderCombinedTrendChart = () => {
-    const period = 30;
+  const periodTrend = 30;
+  const trendChartData = useMemo(() => {
     const weightPoints: { index: number; val: number; date: string }[] = [];
     const bodyfatPoints: { index: number; val: number; date: string }[] = [];
 
     let count = 0;
-    for (let i = period - 1; i >= 0; i--) {
+    for (let i = periodTrend - 1; i >= 0; i--) {
       const dStr = getDateString(-i);
       const day = days[dStr];
       if (day) {
@@ -154,13 +160,18 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
       }
       count++;
     }
+    return { weightPoints, bodyfatPoints };
+  }, [days, periodTrend]);
 
+  // 2. Combined Trend Chart for both Weight and Bodyfat
+  const renderCombinedTrendChart = () => {
+    const { weightPoints, bodyfatPoints } = trendChartData;
     const hasWeight = weightPoints.length >= 2;
     const hasBodyfat = bodyfatPoints.length >= 2;
 
     if (!hasWeight && !hasBodyfat) {
       return (
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-3xl p-4 flex flex-col justify-center items-center h-[160px]">
+        <div className="bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 flex flex-col justify-center items-center h-[160px]">
           <h4 className="text-xs font-bold text-zinc-400 tracking-wider mb-2 uppercase self-start">體重與體脂趨勢 (近 30 天)</h4>
           <span className="text-zinc-400 text-xs">資料不足，請記錄至少 2 天的體重或體脂率以生成趨勢圖</span>
         </div>
@@ -168,7 +179,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
     }
 
     // Helper coordinates
-    const getXCoord = (idx: number) => (idx / (period - 1)) * 100;
+    const getXCoord = (idx: number) => (idx / (periodTrend - 1)) * 100;
 
     // Weight coordinate helper
     let weightPath = "";
@@ -205,9 +216,10 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
     }
 
     return (
-      <div className="relative bg-white/[0.02] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-3xl p-4 flex flex-col justify-between h-full">
-        <div>
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+      <div className="relative group h-full">
+        <div className="absolute -inset-1 rounded-3xl opacity-[0.2] blur-xl bg-gradient-to-br from-indigo-500/20 via-white/10 to-transparent group-hover:opacity-[0.4] group-active:opacity-[0.5] group-active:scale-95 transition-all duration-500 pointer-events-none" />
+        <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">體重與體脂雙指標趨勢 (近 30 天)</h4>
             <div className="flex items-center gap-2.5 text-[9px] font-bold">
               <span className="flex items-center gap-1 text-indigo-400">
@@ -260,21 +272,21 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
                     y1={getYCoordW(goalWeight)}
                     x2="100"
                     y2={getYCoordW(goalWeight)}
-                    stroke="#10b981"
-                    strokeWidth="1.25"
-                    strokeDasharray="2,2"
-                    className="opacity-60"
+                    stroke="#fbbf24"
+                    strokeWidth="1.5"
+                    strokeDasharray="3,3"
+                    className="opacity-85"
                   />
                   <text
                     x="98"
-                    y={getYCoordW(goalWeight) > 50 ? getYCoordW(goalWeight) - 3 : getYCoordW(goalWeight) + 5}
-                    fill="#10b981"
-                    fontSize="4"
+                    y={getYCoordW(goalWeight) > 50 ? getYCoordW(goalWeight) - 3.5 : getYCoordW(goalWeight) + 5.5}
+                    fill="#fbbf24"
+                    fontSize="4.5"
                     fontWeight="black"
                     textAnchor="end"
-                    className="opacity-90 font-mono tracking-wider"
+                    className="opacity-100 font-sans tracking-widest filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
                   >
-                    目標 {goalWeight} kg 🎯
+                    目標 {goalWeight} kg 🏆
                   </text>
                 </g>
               )}
@@ -336,11 +348,10 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
               })}
             </svg>
           </div>
-        </div>
 
         {/* X Axis Labels & Ranges */}
         <div className="flex justify-between items-center text-[9px] text-zinc-400 font-mono mt-2">
-          <span>{formatFriendlyDate(getDateString(-period + 1))}</span>
+          <span>{formatFriendlyDate(getDateString(-periodTrend + 1))}</span>
           <div className="flex gap-2.5">
             {hasWeight && (
               <span>體重: {minW.toFixed(1)}~{maxW.toFixed(1)}kg</span>
@@ -381,6 +392,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
             <div className="text-[9px] text-zinc-400 text-center">{hoveredBodyFat.date}</div>
           </div>
         )}
+        </div>
       </div>
     );
   };

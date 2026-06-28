@@ -11,6 +11,8 @@ export interface MealItem {
   amount?: number | null;
   count?: number;
   category?: string; // e.g. "澱粉", "蛋白質", "蔬菜", "點心", "飲料", "其他"
+  time?: string; // e.g. "12:35"
+  image?: string; // Base64 image
 }
 
 export interface MealGroup {
@@ -18,6 +20,9 @@ export interface MealGroup {
   id: number;
   name: string;
   items: MealItem[];
+  time?: string; // e.g. "12:35"
+  category?: string; // e.g. "澱粉", "蛋白質", "蔬菜", "點心", "飲料", "其他"
+  image?: string; // Base64 image
 }
 
 export type MealRecord = MealItem | MealGroup;
@@ -40,8 +45,10 @@ export interface DayRecord {
   };
   waterLog: WaterLogItem[];
   exercise: number;
+  steps?: number;
   weight: number | null;
   bodyfat: number | null;
+  photos?: { id: string; url: string; timestamp: number }[];
 }
 
 export interface NutritionTargets {
@@ -68,6 +75,7 @@ export interface Settings {
   targets: NutritionTargets;
   customWaterCup?: number;
   geminiApiKey?: string;
+  autoWaterTarget?: boolean;
 }
 
 export interface DBState {
@@ -100,4 +108,5 @@ export const DEFAULT_SETTINGS: Settings = {
   targets: DEFAULT_TARGETS,
   customWaterCup: 500,
   geminiApiKey: "",
+  autoWaterTarget: true,
 };

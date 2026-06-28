@@ -1,0 +1,4 @@
+1527:      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#040406]">
+1532:        <div className="absolute top-[-200px] left-[-200px] w-[600px] h-[600px] rounded-full bg-indigo-500/[0.04] blur-[130px]"/>
+1535:        <div className="absolute bottom-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full bg-emerald-500/[0.03] blur-[140px]"/>
+4203:        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-black/50/90 border border-zinc-800 rounded-2xl px-4.5 py-3.5 shadow-2xl animate-in fade-in slide-in-from-bottom-5 duration-200">

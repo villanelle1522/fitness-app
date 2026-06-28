@@ -1,0 +1,139 @@
+277-        return detectCategory(f) === libraryFilterCategory;
+278-      })
+279-      .sort((a, b) => {
+280-        const getKcal = (x: MealRecord): number => {
+281-          if ("type"in x && x.type === "group") {
+282:            return (x as MealGroup).items.reduce((s, u) => s + (u.kcal || 0), 0);
+283-          }
+284-          return (x as MealItem).kcal || 0;
+285-        };
+286-        const getProtein = (x: MealRecord): number => {
+287-          if ("type"in x && x.type === "group") {
+288:            return (x as MealGroup).items.reduce((s, u) => s + (u.protein || 0), 0);
+289-          }
+290-          return (x as MealItem).protein || 0;
+291-        };
+292-        const getFiber = (x: MealRecord): number => {
+293-          if ("type"in x && x.type === "group") {
+294:            return (x as MealGroup).items.reduce((s, u) => s + (u.fiber || 0), 0);
+295-          }
+296-          return (x as MealItem).fiber || 0;
+297-        };
+298-
+299-        if (librarySortBy === "kcalAsc") return getKcal(a) - getKcal(b);
+--
+653-    const item = day.meals[category as keyof typeof day.meals][idx];
+654-    if (!item) return;
+655-
+656-    if ("type"in item && item.type === "group") {
+657-      // Adjust group aggregate ratio
+658:      const gKcal = item.items.reduce((sum, s) => sum + (s.kcal || 0), 0);
+659-      const dummyGroup = { name: item.name, kcal: gKcal };
+660-      setAdjustContext({
+661-        type: "group",
+662-        meal: category,
+663-        idx,
+--
+667-        customGram: 0,
+668-        customCount: 1,
+669-        adjustMode: "ratio",
+670-        editedNutrients: {
+671-          kcal: gKcal,
+672:          protein: item.items.reduce((sum, s) => sum + (s.protein || 0), 0),
+673:          carb: item.items.reduce((sum, s) => sum + (s.carb || 0), 0),
+674:          fat: item.items.reduce((sum, s) => sum + (s.fat || 0), 0),
+675:          fiber: item.items.reduce((sum, s) => sum + (s.fiber || 0), 0),
+676:          sugar: item.items.reduce((sum, s) => sum + (s.sugar || 0), 0),
+677:          sodium: item.items.reduce((sum, s) => sum + (s.sodium || 0), 0),
+678-        },
+679-      });
+680-    } else {
+681-      const singleItem = item as MealItem;
+682-      setAdjustContext({
+--
+818-    } else if (type === "group") {
+819-      // Group calorie ratio scaling
+820-      const grp = updatedMeals[meal as keyof typeof updatedMeals][idx!] as MealGroup;
+821-      if (grp) {
+822-        grp.name = customName || grp.name;
+823:        const origKcal = grp.items.reduce((sum, s) => sum + (s.kcal || 0), 0) || 1;
+824-        const newKcal = editedNutrients.kcal;
+825-        const ratio = newKcal / origKcal;
+826-
+827-        grp.items = grp.items.map((sub) => ({
+828-          ...sub,
+--
+1105-      sugar: Math.round(totals.sugar * 10) / 10,
+1106-      sodium: Math.round(totals.sodium),
+1107-    };
+1108-  }, [dayRecord.meals]);
+1109-
+1110:  const waterTotalLogged = useMemo(() => dayRecord.waterLog.reduce((sum, w) => sum + w.ml, 0), [dayRecord.waterLog]);
+1111-  const settings = db.settings;
+1112-  const targets = settings.targets;
+1113-  
+1114-  // Calorie progress circle parameters
+1115-  const kcalTarget = targets.kcal || 1800;
+--
+1170-    let consecutiveWaterDays = 0;
+1171-    
+1172-    dates.forEach((dateStr) => {
+1173-      const dRec = db.days[dateStr];
+1174-      if (!dRec) return;
+1175:      const waterSum = dRec.waterLog ? dRec.waterLog.reduce((s, w) => s + w.ml, 0) : 0;
+1176-      if (waterSum >= (settings.waterTarget || 1800)) {
+1177-        consecutiveWaterDays += 1;
+1178-        if (consecutiveWaterDays > maxConsecutiveWaterDays) {
+1179-          maxConsecutiveWaterDays = consecutiveWaterDays;
+1180-        }
+--
+2185-                          ];
+2186-                          
+2187-                          return mealsData.map((mealDef, index) => {
+2188-                            const cat = mealDef.cat;
+2189-                            const list = dayRecord.meals[cat as keyof typeof dayRecord.meals] || [];
+2190:                            const mealKcal = Math.round(list.reduce((sum, item) => {
+2191-                              if ("type"in item && item.type === "group") {
+2192:                                return sum + item.items.reduce((acc, sub) => acc + (sub.kcal || 0), 0);
+2193-                              }
+2194-                              const singleItem = item as MealItem;
+2195-                              return sum + (singleItem.kcal || 0);
+2196-                            }, 0));
+2197-                            
+--
+2255-                                        <Zap className="w-3 h-3 text-amber-400"/>
+2256-                                        常用推薦:
+2257-                                      </span>
+2258-                                      {recentMeals.map((recMeal, rmIdx) => {
+2259-                                        const rKcal = "type"in recMeal && recMeal.type === "group"
+2260:                                          ? recMeal.items.reduce((s, it) => s + (it.kcal || 0), 0)
+2261-                                          : (recMeal as MealItem).kcal;
+2262-                                        return (
+2263-                                          <button
+2264-                                            key={rmIdx}
+2265-                                            type="button"
+--
+2281-                                    </div>
+2282-                                  ) : (
+2283-                                    list.map((item, idx) => {
+2284-                                      // Render Group Items
+2285-                                      if ("type"in item && item.type === "group") {
+2286:                                        const groupKcal = item.items.reduce((s, it) => s + (it.kcal || 0), 0);
+2287:                                        const groupProtein = item.items.reduce((s, it) => s + (it.protein || 0), 0);
+2288-                                        return (
+2289-                                          <SwipeToDelete 
+2290-                                            key={item.id} 
+2291-                                            onDelete={() => deleteMealItem(cat, idx)}
+2292-                                            onEdit={() => openAdjustItemModal(cat, idx)}
+--
+3616-                    ) : (
+3617-                      db.foods
+3618-                        .filter((f) => f.name.toLowerCase().includes(quickSearchQuery.toLowerCase()))
+3619-                        .map((f, idx) => {
+3620-                          const itemKcal = "type"in f && f.type === "group"
+3621:                            ? f.items.reduce((s, sub) => s + (sub.kcal || 0), 0)
+3622-                            : (f.kcal || 0);
+3623-
+3624-                          return (
+3625-                            <div 
+3626-                              key={f.id || idx}

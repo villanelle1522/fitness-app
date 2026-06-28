@@ -32,7 +32,7 @@ if (apiKey) {
 // AI Meal Analyzer Endpoint
 app.post("/api/analyze-meal", async (req, res): Promise<any> => {
   try {
-    const { prompt, image, mimeType, customApiKey } = req.body;
+    const { prompt, image, mimeType, customApiKey, customFoods = [] } = req.body;
 
     let activeAi = ai;
     if (customApiKey && customApiKey.trim()) {
@@ -56,6 +56,12 @@ app.post("/api/analyze-meal", async (req, res): Promise<any> => {
       return res.status(400).json({ error: "Missing prompt or image content" });
     }
 
+    let memoryContext = "";
+    if (Array.isArray(customFoods) && customFoods.length > 0) {
+      const memoryList = customFoods.map((f: any) => `- ${f.name}: ${f.kcal} kcal, 蛋白質 ${f.protein}g, 碳水 ${f.carb}g, 脂肪 ${f.fat}g`).join('\n');
+      memoryContext = `\n\n【使用者個人專屬記憶庫】\n以下是使用者常吃的個人食物清單及其營養素。如果您在圖片或文字中辨識出類似的餐點，請**優先套用**這些專屬記憶數據，而非一般通用數據：\n${memoryList}`;
+    }
+
     const systemInstruction = `You are a professional dietitian and food analysis expert. 
 Analyze the provided text description or image of a meal/food, estimate the ingredients and their nutritional values accurately.
 Always translate the output food names into Traditional Chinese (zh-TW) as used in Taiwan (e.g. 滷肉飯, 味噌湯).
@@ -69,7 +75,7 @@ Calculate:
 - sodium (sodium in milligrams)
 - amount (estimated weight in grams, or null/0 if not clearly estimable)
 
-Ensure all values are realistic based on standard food databases.
+Ensure all values are realistic based on standard food databases.${memoryContext}
 Provide the response strictly as a JSON array matching the requested schema.`;
 
     const contents: any[] = [];
