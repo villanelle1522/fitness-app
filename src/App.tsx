@@ -262,6 +262,8 @@ export default function App() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showAICoach, setShowAICoach] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [copiedHealthUrl, setCopiedHealthUrl] = useState(false);
+  const [showHealthTutorial, setShowHealthTutorial] = useState(false);
 
   // ─── Image Upload for Meals ───
   const handleItemImageUpload = (category: string, index: number, subIndex: number | null, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3555,25 +3557,84 @@ export default function App() {
                       </div>
 
                       {/* Apple Health Section */}
-                      <div className="space-y-2 border-t border-white/[0.05] pt-4 mt-2">
+                      <div className="space-y-3 border-t border-white/[0.05] pt-4 mt-2">
                         <p className="text-[11px] text-zinc-500 leading-relaxed font-bold flex justify-between items-center">
                           <span>2. Apple Health 同步</span>
                           <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase font-black tracking-wider">iOS 捷徑 API</span>
                         </p>
                         
-                        <div className="bg-black/30 border border-zinc-800 rounded-lg p-3 space-y-2">
-                          <p className="text-[10px] text-zinc-500 leading-relaxed">
+                        <div className="bg-black/30 border border-zinc-800 rounded-lg p-3 space-y-3">
+                          <p className="text-[10px] text-zinc-400 leading-relaxed font-medium">
                             請在 Safari 網頁中使用本軟體 (避免加入主畫面導致空間隔離)。透過 iOS 捷徑「開啟 URL」發送數據：
                           </p>
                           
-                          <div className="bg-zinc-950 p-2 rounded border border-zinc-850 overflow-x-auto">
-                            <code className="text-[10px] text-indigo-300 font-mono whitespace-nowrap">
-                              {window.location.origin}/?action=syncHealth&amp;weight=65&amp;exercise=300&amp;steps=8000&amp;mode=add
-                            </code>
+                          <div className="relative bg-zinc-950 p-2.5 rounded border border-zinc-850 flex items-center justify-between gap-2 overflow-hidden">
+                            <div className="overflow-x-auto scrollbar-none flex-1 pr-1">
+                              <code className="text-[10px] text-indigo-300 font-mono whitespace-nowrap">
+                                {window.location.origin}/?action=syncHealth&amp;weight=[體重]&amp;exercise=[運動大卡]&amp;steps=[步數]&amp;mode=add
+                              </code>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const url = `${window.location.origin}/?action=syncHealth&weight=[體重]&exercise=[運動大卡]&steps=[步數]&mode=add`;
+                                navigator.clipboard.writeText(url);
+                                setCopiedHealthUrl(true);
+                                showToast("健康同步 API 網址已複製！", "success");
+                                setTimeout(() => setCopiedHealthUrl(false), 2000);
+                              }}
+                              className={`p-2 rounded-lg border text-xs cursor-pointer transition-all flex items-center justify-center gap-1 shrink-0 ${
+                                copiedHealthUrl 
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                                  : "bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300"
+                              }`}
+                            >
+                              {copiedHealthUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span className="text-[10px] font-bold hidden sm:inline">{copiedHealthUrl ? "已複製" : "複製網址"}</span>
+                            </button>
                           </div>
+                          
                           <p className="text-[10px] text-zinc-500 leading-relaxed">
-                            參數：<code className="text-zinc-400">weight</code>, <code className="text-zinc-400">exercise</code>, <code className="text-zinc-400">steps</code>, <code className="text-zinc-400">mode=add</code> (累加)
+                            參數：<code className="text-zinc-400">weight</code> (體重), <code className="text-zinc-400">exercise</code> (運動大卡), <code className="text-zinc-400">steps</code> (步數), <code className="text-zinc-400">mode=add</code> (累加，否則為覆寫)
                           </p>
+
+                          {/* Collapsible Tutorial Accordion */}
+                          <div className="border-t border-zinc-850/60 pt-2.5 mt-2">
+                            <button
+                              onClick={() => setShowHealthTutorial(!showHealthTutorial)}
+                              className="w-full flex items-center justify-between text-[11px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors py-1 cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                <span>如何設定 iOS 「健康」自動同步捷徑？</span>
+                              </span>
+                              {showHealthTutorial ? <ChevronDown className="w-3.5 h-3.5 rotate-180 transition-transform duration-200" /> : <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200" />}
+                            </button>
+
+                            {showHealthTutorial && (
+                              <div className="mt-2.5 space-y-3 pl-1 text-[11px] text-zinc-400 leading-relaxed border-l-2 border-indigo-500/20 pl-3 py-1 animate-in slide-in-from-top-1 duration-150">
+                                <div>
+                                  <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 1：建立全新捷徑</span>
+                                  在 iPhone 中開啟「捷徑」App，點選右上角「＋」建立一個新的捷徑，將其命名為例如「同步健康數據」。
+                                </div>
+                                <div>
+                                  <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 2：獲取 Apple 內建健康資料</span>
+                                  搜尋並加入「尋找健康樣本」或「獲取健康樣本」動作（如：類型選「體重」、「活動能量」或「步數」），將值存入變數。
+                                </div>
+                                <div>
+                                  <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 3：設定傳輸網址</span>
+                                  加入「URL」動作，貼上剛剛複製的 API 網址。將網址內預設的預留標籤（如 <code className="text-zinc-300 font-mono">[體重]</code>、<code className="text-zinc-300 font-mono">[運動大卡]</code>、<code className="text-zinc-300 font-mono">[步數]</code>）刪除，替換為剛才步驟 2 獲取到的健康資料「變數」。
+                                </div>
+                                <div>
+                                  <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 4：執行開啟同步</span>
+                                  加入「開啟 URL」動作，將對象設為前一步的 URL 動作結果。
+                                </div>
+                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-[10px] text-amber-400 mt-1">
+                                  <span className="font-bold block mb-0.5">⚠️ 關鍵提醒：</span>
+                                  本系統為離線優先設計，數據保存在 Safari 瀏覽器中。捷徑在背景執行時，最後一步「開啟 URL」會自動啟動 Safari 瀏覽器，開啟網頁的瞬間即會將健康數據寫入您的本機紀錄中。
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
