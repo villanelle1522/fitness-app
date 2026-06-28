@@ -87,6 +87,76 @@ export default function App() {
     foods: [],
   });
   const [activeTab, setActiveTab] = useState<"today" | "history" | "foods" | "settings">("today");
+
+  // Mobile Swipe Gesture State & Handlers
+  const touchStartX = React.useRef<number | null>(null);
+  const touchStartY = React.useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.tagName === "BUTTON" ||
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("textarea") ||
+      target.closest("select") ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+
+    // Prevent swiping if within a horizontal scroll container
+    let el: HTMLElement | null = target;
+    while (el && el !== document.body) {
+      const style = window.getComputedStyle(el);
+      if (
+        style.overflowX === "auto" || 
+        style.overflowX === "scroll" || 
+        el.classList.contains("overflow-x-auto") || 
+        el.classList.contains("overflow-x-scroll")
+      ) {
+        return;
+      }
+      el = el.parentElement;
+    }
+
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    
+    const diffX = e.changedTouches[0].clientX - touchStartX.current;
+    const diffY = e.changedTouches[0].clientY - touchStartY.current;
+    
+    // Swipe left/right threshold: 50px
+    if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (activeTab === "today") {
+        if (diffX > 0) {
+          // Swipe Right -> Previous Day
+          const parts = currentDate.split("-");
+          const prev = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          prev.setDate(prev.getDate() - 1);
+          setCurrentDate(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}-${String(prev.getDate()).padStart(2, "0")}`);
+          showToast("📅 已切換至前一日", "info");
+        } else {
+          // Swipe Left -> Next Day
+          const parts = currentDate.split("-");
+          const next = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          next.setDate(next.getDate() + 1);
+          setCurrentDate(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`);
+          showToast("📅 已切換至後一日", "info");
+        }
+      }
+    }
+    
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
   
   // ─── Modal & Form States ───
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1239,7 +1309,11 @@ export default function App() {
         </header>
 
         {/* Main Dashboard Panel */}
-        <main className="flex-1 w-full p-4 sm:p-6 lg:p-8 lg:h-full lg:overflow-y-auto overflow-x-hidden">
+        <main 
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="flex-1 w-full p-4 sm:p-6 lg:p-8 lg:h-full lg:overflow-y-auto overflow-x-hidden"
+        >
           
           {/* Header Action / Date Navigator (Active only when activeTab is "today" or "history") */}
           {activeTab === "today" && (
@@ -1895,13 +1969,27 @@ export default function App() {
                       {(() => {
                         const startW = settings.weight || 0;
                         const goalW = settings.goalWeight || 0;
-                        const totalDiff = Math.abs(startW - goalW);
-                        const leftDiff = Math.abs(latestWeight - goalW);
                         let progPct = 0;
-                        if (totalDiff > 0) {
-                          progPct = Math.min(100, Math.max(0, (1 - leftDiff / totalDiff) * 100));
-                        } else if (latestWeight === goalW) {
-                          progPct = 100;
+                        if (startW === goalW) {
+                          progPct = latestWeight === goalW ? 100 : 0;
+                        } else if (startW > goalW) {
+                          // Losing weight
+                          if (latestWeight <= goalW) {
+                            progPct = 100;
+                          } else if (latestWeight >= startW) {
+                            progPct = 0;
+                          } else {
+                            progPct = ((startW - latestWeight) / (startW - goalW)) * 100;
+                          }
+                        } else {
+                          // Gaining weight
+                          if (latestWeight >= goalW) {
+                            progPct = 100;
+                          } else if (latestWeight <= startW) {
+                            progPct = 0;
+                          } else {
+                            progPct = ((latestWeight - startW) / (goalW - startW)) * 100;
+                          }
                         }
 
                         return (
