@@ -55,18 +55,20 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
       <div className="relative group h-full">
         <div className="absolute -inset-1 rounded-3xl opacity-[0.2] blur-xl bg-gradient-to-br from-indigo-500/20 via-white/10 to-transparent group-hover:opacity-[0.4] group-active:opacity-[0.5] group-active:scale-95 transition-all duration-500 pointer-events-none" />
         <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 h-full flex flex-col justify-between">
-            <h4 className="text-xs font-bold text-zinc-400 tracking-wider mb-4 uppercase">每日熱量消耗與目標 (近 14 天)</h4>
+          <div className="flex justify-between items-start flex-wrap gap-2 mb-4">
+            <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">每日熱量消耗與目標 (近 14 天)</h4>
+            <div className="flex items-center gap-1.5 text-[9px] text-purple-400 font-extrabold bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 uppercase tracking-widest shrink-0">
+              <span className="w-2.5 h-0 border-t border-dashed border-purple-400 inline-block" />
+              <span>目標 {targets.kcal} 大卡</span>
+            </div>
+          </div>
         
         <div className="relative h-[130px] w-full flex items-end justify-between border-b border-zinc-800 pb-1">
           {/* Target Line */}
           <div 
-            className="absolute left-0 right-0 border-t border-dashed border-purple-500/60 z-0 flex items-center justify-end"
+            className="absolute left-0 right-0 border-t border-dashed border-purple-500/60 z-0 flex items-center justify-end animate-pulse"
             style={{ bottom: `${(targets.kcal / maxKcal) * 100}%` }}
-          >
-            <span className="text-[10px] text-purple-400 font-semibold px-2 bg-zinc-900/90 rounded border border-zinc-800 translate-y-[-50%]">
-              目標: {targets.kcal} 大卡
-            </span>
-          </div>
+          />
 
           {/* Bar elements */}
           {data.map((item, index) => {
@@ -99,6 +101,18 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
                         });
                       }}
                       onMouseLeave={() => setHoveredCalorie(null)}
+                      onTouchStart={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredCalorie({
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                          val: Math.round(item.kcal),
+                          date: formatFriendlyDate(item.date),
+                        });
+                      }}
+                      onTouchEnd={() => {
+                        setTimeout(() => setHoveredCalorie(null), 2500);
+                      }}
                     />
                   )}
                 </div>
@@ -135,31 +149,31 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
 
   const periodTrend = 30;
   const trendChartData = useMemo(() => {
-    const weightPoints: { index: number; val: number; date: string }[] = [];
-    const bodyfatPoints: { index: number; val: number; date: string }[] = [];
+    const weightPoints: { val: number; date: string }[] = [];
+    const bodyfatPoints: { val: number; date: string }[] = [];
 
-    let count = 0;
     for (let i = periodTrend - 1; i >= 0; i--) {
       const dStr = getDateString(-i);
       const day = days[dStr];
       if (day) {
         if (day.weight !== null && day.weight !== undefined) {
           weightPoints.push({
-            index: count,
             val: day.weight,
             date: dStr,
           });
         }
         if (day.bodyfat !== null && day.bodyfat !== undefined) {
           bodyfatPoints.push({
-            index: count,
             val: day.bodyfat,
             date: dStr,
           });
         }
       }
-      count++;
     }
+
+    weightPoints.sort((a, b) => a.date.localeCompare(b.date));
+    bodyfatPoints.sort((a, b) => a.date.localeCompare(b.date));
+
     return { weightPoints, bodyfatPoints };
   }, [days, periodTrend]);
 
@@ -169,7 +183,15 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
     const hasWeight = weightPoints.length >= 2;
     const hasBodyfat = bodyfatPoints.length >= 2;
 
-    if (!hasWeight && !hasBodyfat) {
+    const allDates = [
+      ...weightPoints.map((p) => p.date),
+      ...bodyfatPoints.map((p) => p.date),
+    ].sort();
+
+    const uniqueDates = Array.from(new Set(allDates)).sort();
+    const hasData = uniqueDates.length >= 2;
+
+    if (!hasData) {
       return (
         <div className="bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 flex flex-col justify-center items-center h-[160px]">
           <h4 className="text-xs font-bold text-zinc-400 tracking-wider mb-2 uppercase self-start">體重與體脂趨勢 (近 30 天)</h4>
@@ -178,8 +200,22 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
       );
     }
 
-    // Helper coordinates
-    const getXCoord = (idx: number) => (idx / (periodTrend - 1)) * 100;
+    const startDate = uniqueDates[0];
+    const endDate = uniqueDates[uniqueDates.length - 1];
+
+    const getDayDiff = (dateStr1: string, dateStr2: string): number => {
+      const d1 = new Date(dateStr1 + "T00:00:00");
+      const d2 = new Date(dateStr2 + "T00:00:00");
+      const diffTime = d2.getTime() - d1.getTime();
+      return Math.round(diffTime / (1000 * 60 * 60 * 24));
+    };
+
+    const totalDays = Math.max(1, getDayDiff(startDate, endDate));
+
+    const getXCoord = (dateStr: string) => {
+      const daysFromStart = getDayDiff(startDate, dateStr);
+      return (daysFromStart / totalDays) * 100;
+    };
 
     // Weight coordinate helper
     let weightPath = "";
@@ -194,7 +230,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
       const wRange = maxW - minW || 1;
       getYCoordW = (val: number) => 100 - ((val - minW) / wRange) * 80 - 10;
       weightPath = weightPoints
-        .map((p, idx) => `${idx === 0 ? "M" : "L"}${getXCoord(p.index)} ${getYCoordW(p.val)}`)
+        .map((p, idx) => `${idx === 0 ? "M" : "L"}${getXCoord(p.date)} ${getYCoordW(p.val)}`)
         .join(" ");
     }
 
@@ -211,7 +247,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
       const fRange = maxF - minF || 1;
       getYCoordF = (val: number) => 100 - ((val - minF) / fRange) * 80 - 10;
       bodyfatPath = bodyfatPoints
-        .map((p, idx) => `${idx === 0 ? "M" : "L"}${getXCoord(p.index)} ${getYCoordF(p.val)}`)
+        .map((p, idx) => `${idx === 0 ? "M" : "L"}${getXCoord(p.date)} ${getYCoordF(p.val)}`)
         .join(" ");
     }
 
@@ -221,12 +257,17 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
         <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">體重與體脂雙指標趨勢 (近 30 天)</h4>
-            <div className="flex items-center gap-2.5 text-[9px] font-bold">
-              <span className="flex items-center gap-1 text-indigo-400">
+            <div className="flex items-center gap-2 text-[9px] font-bold flex-wrap">
+              {hasWeight && (
+                <span className="flex items-center gap-1 text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 text-[8px] uppercase tracking-wider">
+                  🏆 目標 {goalWeight} kg
+                </span>
+              )}
+              <span className="flex items-center gap-1 text-indigo-400 bg-indigo-500/5 px-1.5 py-0.5 rounded border border-indigo-500/10">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                 體重 {hasWeight ? `${weightPoints[weightPoints.length - 1].val.toFixed(1)}kg` : "無"}
               </span>
-              <span className="flex items-center gap-1 text-orange-400">
+              <span className="flex items-center gap-1 text-orange-400 bg-orange-500/5 px-1.5 py-0.5 rounded border border-orange-500/10">
                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                 體脂 {hasBodyfat ? `${bodyfatPoints[bodyfatPoints.length - 1].val.toFixed(1)}%` : "無"}
               </span>
@@ -236,7 +277,16 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
           <div className="relative h-[160px] w-full border-b border-zinc-800/80 pb-1">
             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
               {/* Center divider line */}
-              <line x1="0" y1="50" x2="100" y2="50" stroke="#27272a" strokeWidth="0.5" strokeDasharray="2,2" />
+              <line 
+                x1="0" 
+                y1="50" 
+                x2="100" 
+                y2="50" 
+                stroke="#27272a" 
+                strokeWidth="0.5" 
+                strokeDasharray="2,2" 
+                vectorEffect="non-scaling-stroke"
+              />
 
               {/* Weight trend line */}
               {hasWeight && (
@@ -247,6 +297,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
                   className="opacity-85"
                 />
               )}
@@ -260,98 +311,105 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
                   className="opacity-85"
                 />
               )}
 
-              {/* Target Goal Weight Guideline */}
+              {/* Target Goal Weight Guideline (Line only) */}
               {hasWeight && (
-                <g>
-                  <line
-                    x1="0"
-                    y1={getYCoordW(goalWeight)}
-                    x2="100"
-                    y2={getYCoordW(goalWeight)}
-                    stroke="#fbbf24"
-                    strokeWidth="1.5"
-                    strokeDasharray="3,3"
-                    className="opacity-85"
-                  />
-                  <text
-                    x="98"
-                    y={getYCoordW(goalWeight) > 50 ? getYCoordW(goalWeight) - 3.5 : getYCoordW(goalWeight) + 5.5}
-                    fill="#fbbf24"
-                    fontSize="4.5"
-                    fontWeight="black"
-                    textAnchor="end"
-                    className="opacity-100 font-sans tracking-widest filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
-                  >
-                    目標 {goalWeight} kg 🏆
-                  </text>
-                </g>
+                <line
+                  x1="0"
+                  y1={getYCoordW(goalWeight)}
+                  x2="100"
+                  y2={getYCoordW(goalWeight)}
+                  stroke="#fbbf24"
+                  strokeWidth="1.5"
+                  strokeDasharray="4,3"
+                  vectorEffect="non-scaling-stroke"
+                  className="opacity-80"
+                />
               )}
-
-              {/* Weight circles */}
-              {hasWeight && weightPoints.map((p, idx) => {
-                const cx = getXCoord(p.index);
-                const cy = getYCoordW(p.val);
-                return (
-                  <circle
-                    key={`w-${idx}`}
-                    cx={`${cx}%`}
-                    cy={`${cy}%`}
-                    r="3.5"
-                    fill="#09090b"
-                    stroke="#6366f1"
-                    strokeWidth="2"
-                    className="cursor-pointer transition-transform duration-200 hover:scale-150"
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredWeight({
-                        x: rect.left + rect.width / 2,
-                        y: rect.top,
-                        val: p.val,
-                        date: formatFriendlyDate(p.date),
-                      });
-                    }}
-                    onMouseLeave={() => setHoveredWeight(null)}
-                  />
-                );
-              })}
-
-              {/* Bodyfat circles */}
-              {hasBodyfat && bodyfatPoints.map((p, idx) => {
-                const cx = getXCoord(p.index);
-                const cy = getYCoordF(p.val);
-                return (
-                  <circle
-                    key={`f-${idx}`}
-                    cx={`${cx}%`}
-                    cy={`${cy}%`}
-                    r="3.5"
-                    fill="#09090b"
-                    stroke="#f97316"
-                    strokeWidth="2"
-                    className="cursor-pointer transition-transform duration-200 hover:scale-150"
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredBodyFat({
-                        x: rect.left + rect.width / 2,
-                        y: rect.top,
-                        val: p.val,
-                        date: formatFriendlyDate(p.date),
-                      });
-                    }}
-                    onMouseLeave={() => setHoveredBodyFat(null)}
-                  />
-                );
-              })}
             </svg>
+
+            {/* Weight HTML circles (Positioned with 44px * 44px transparent touch target zones for superior mobile precision) */}
+            {hasWeight && weightPoints.map((p, idx) => {
+              const cx = getXCoord(p.date);
+              const cy = getYCoordW(p.val);
+              return (
+                <div
+                  key={`w-touch-target-${idx}`}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center z-20 cursor-pointer group"
+                  style={{ left: `${cx}%`, top: `${cy}%` }}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredWeight({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                      val: p.val,
+                      date: formatFriendlyDate(p.date),
+                    });
+                  }}
+                  onMouseLeave={() => setHoveredWeight(null)}
+                  onTouchStart={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredWeight({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                      val: p.val,
+                      date: formatFriendlyDate(p.date),
+                    });
+                  }}
+                  onTouchEnd={() => {
+                    setTimeout(() => setHoveredWeight(null), 2500);
+                  }}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-950 border-[2px] border-indigo-500 group-hover:scale-150 group-active:scale-150 transition-transform duration-200" />
+                </div>
+              );
+            })}
+
+            {/* Bodyfat HTML circles (Positioned with 44px * 44px transparent touch target zones for superior mobile precision) */}
+            {hasBodyfat && bodyfatPoints.map((p, idx) => {
+              const cx = getXCoord(p.date);
+              const cy = getYCoordF(p.val);
+              return (
+                <div
+                  key={`f-touch-target-${idx}`}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center z-20 cursor-pointer group"
+                  style={{ left: `${cx}%`, top: `${cy}%` }}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredBodyFat({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                      val: p.val,
+                      date: formatFriendlyDate(p.date),
+                    });
+                  }}
+                  onMouseLeave={() => setHoveredBodyFat(null)}
+                  onTouchStart={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredBodyFat({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                      val: p.val,
+                      date: formatFriendlyDate(p.date),
+                    });
+                  }}
+                  onTouchEnd={() => {
+                    setTimeout(() => setHoveredBodyFat(null), 2500);
+                  }}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-950 border-[2px] border-orange-500 group-hover:scale-150 group-active:scale-150 transition-transform duration-200" />
+                </div>
+              );
+            })}
           </div>
 
         {/* X Axis Labels & Ranges */}
-        <div className="flex justify-between items-center text-[9px] text-zinc-400 font-mono mt-2">
-          <span>{formatFriendlyDate(getDateString(-periodTrend + 1))}</span>
+        <div className="flex justify-between items-center text-[9px] text-zinc-400 font-mono mt-2 border-t border-zinc-800/50 pt-1.5">
+          <span>{formatFriendlyDate(startDate)}</span>
           <div className="flex gap-2.5">
             {hasWeight && (
               <span>體重: {minW.toFixed(1)}~{maxW.toFixed(1)}kg</span>
@@ -360,7 +418,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
               <span>體脂: {minF.toFixed(1)}~{maxF.toFixed(1)}%</span>
             )}
           </div>
-          <span>今天</span>
+          <span>{formatFriendlyDate(endDate)}</span>
         </div>
 
         {/* Weight Tooltip */}
