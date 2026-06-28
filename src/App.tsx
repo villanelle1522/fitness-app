@@ -109,6 +109,24 @@ export default function App() {
   const [mSaveToLib, setMSaveToLib] = useState(true);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);
 
+  // Edit Food Library Modal State
+  const [showEditFoodModal, setShowEditFoodModal] = useState(false);
+  const [editFoodIndex, setEditFoodIndex] = useState<number | null>(null);
+  const [eName, setEName] = useState("");
+  const [eCategory, setECategory] = useState("其他");
+  const [eKcal, setEKcal] = useState<number | "">("");
+  const [eProtein, setEProtein] = useState<number | "">("");
+  const [eCarb, setECarb] = useState<number | "">("");
+  const [eFat, setEFat] = useState<number | "">("");
+  const [eFiber, setEFiber] = useState<number | "">("");
+  const [eSugar, setESugar] = useState<number | "">("");
+  const [eSodium, setESodium] = useState<number | "">("");
+  const [eAmount, setEAmount] = useState<number | "">("");
+  const [showEditAdvanced, setShowEditAdvanced] = useState(false);
+
+  // Meal accordion expand state
+  const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
+
   // Adjustment Modal State
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [adjustContext, setAdjustContext] = useState<{
@@ -220,6 +238,17 @@ export default function App() {
     }
   };
 
+  // Synchronize meal accordion expansion based on whether meals have food items initially/on date change
+  useEffect(() => {
+    const dayRec = db.days[currentDate] || { meals: { "早餐": [], "午餐": [], "晚餐": [], "點心": [] } };
+    const newExpanded: Record<string, boolean> = {};
+    ["早餐", "午餐", "晚餐", "點心"].forEach((cat) => {
+      const list = dayRec.meals[cat as keyof typeof dayRec.meals] || [];
+      newExpanded[cat] = list.length > 0;
+    });
+    setExpandedMeals(newExpanded);
+  }, [currentDate]);
+
   // Helper to fetch day record or create new
   const getDayRecord = (dateStr: string): DayRecord => {
     if (db.days[dateStr]) return db.days[dateStr];
@@ -302,6 +331,7 @@ export default function App() {
       },
       foods: updatedFoods,
     });
+    setExpandedMeals(prev => ({ ...prev, [category]: true }));
   };
 
   const handleManualAddSubmit = (e: FormEvent) => {
@@ -899,6 +929,7 @@ export default function App() {
         },
       },
     });
+    setExpandedMeals(prev => ({ ...prev, [category]: true }));
     showToast(`✅ 已加選 ${record.name} 至今日 ${category} 紀錄！`, "success");
   };
 
@@ -965,6 +996,66 @@ export default function App() {
     const updatedFoods = [...db.foods];
     updatedFoods.splice(idx, 1);
     saveDb({ ...db, foods: updatedFoods });
+  };
+
+  const openEditFoodLibraryItem = (idx: number) => {
+    const item = db.foods[idx];
+    setEditFoodIndex(idx);
+    setEName(item.name);
+    setECategory(detectCategory(item));
+    if ("type" in item && item.type === "group") {
+      setEKcal("");
+      setEProtein("");
+      setECarb("");
+      setEFat("");
+      setEFiber("");
+      setESugar("");
+      setESodium("");
+      setEAmount("");
+    } else {
+      const single = item as MealItem;
+      setEKcal(single.kcal || 0);
+      setEProtein(single.protein || 0);
+      setECarb(single.carb || 0);
+      setEFat(single.fat || 0);
+      setEFiber(single.fiber || 0);
+      setESugar(single.sugar || 0);
+      setESodium(single.sodium || 0);
+      setEAmount(single.amount || "");
+    }
+    setShowEditAdvanced(false);
+    setShowEditFoodModal(true);
+  };
+
+  const saveEditedFoodLibraryItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editFoodIndex === null) return;
+    const item = db.foods[editFoodIndex];
+    const updatedFoods = [...db.foods];
+    if ("type" in item && item.type === "group") {
+      updatedFoods[editFoodIndex] = {
+        ...item,
+        name: eName,
+      };
+    } else {
+      updatedFoods[editFoodIndex] = {
+        ...item,
+        name: eName,
+        category: eCategory,
+        kcal: Number(eKcal) || 0,
+        protein: Number(eProtein) || 0,
+        carb: Number(eCarb) || 0,
+        fat: Number(eFat) || 0,
+        fiber: Number(eFiber) || 0,
+        sugar: Number(eSugar) || 0,
+        sodium: Number(eSodium) || 0,
+        amount: eAmount === "" ? null : Number(eAmount),
+      } as MealItem;
+    }
+    saveDb({ ...db, foods: updatedFoods });
+    setShowEditFoodModal(false);
+    setEditFoodIndex(null);
+    showToast("💾 食物品項已成功更新！", "success");
   };
 
   // 批次加入已勾選的食物庫品項到今日記錄
@@ -1527,13 +1618,22 @@ export default function App() {
                             const singleItem = item as MealItem;
                             return sum + (singleItem.kcal || 0);
                           }, 0);
+                          const isExpanded = !!expandedMeals[cat];
 
                           return (
                             <div key={cat} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-3xl overflow-hidden shadow-sm">
                               
                               {/* Meal category Header */}
-                              <div className="flex justify-between items-center bg-zinc-900/60 p-4 border-b border-zinc-850">
+                              <div 
+                                onClick={() => setExpandedMeals(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                                className="flex justify-between items-center bg-zinc-900/60 p-4 border-b border-zinc-850 cursor-pointer select-none hover:bg-zinc-900/80 transition-colors"
+                              >
                                 <div className="flex items-center gap-2">
+                                  {isExpanded ? (
+                                    <ChevronDown className="w-4 h-4 text-zinc-400" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-zinc-400" />
+                                  )}
                                   <span className="text-xs font-black text-zinc-100">{cat}</span>
                                   {mealKcal > 0 && (
                                     <span className="text-[10px] font-bold bg-zinc-800 border border-zinc-750 text-zinc-400 px-2.5 py-0.5 rounded-full">
@@ -1541,7 +1641,7 @@ export default function App() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <button 
                                     onClick={() => copyPreviousDayMeal(cat)}
                                     title="複製前一日此餐飲食紀錄"
@@ -1565,94 +1665,96 @@ export default function App() {
                               </div>
 
                               {/* Meal items container */}
-                              <div className="p-3 divide-y divide-zinc-850">
-                                {list.length === 0 ? (
-                                  <div className="text-center text-zinc-400 text-xs py-6">
-                                    尚無此餐飲食紀錄
-                                  </div>
-                                ) : (
-                                  list.map((item, idx) => {
-                                    // Render Group Items
-                                    if ("type" in item && item.type === "group") {
-                                      const groupKcal = item.items.reduce((s, it) => s + (it.kcal || 0), 0);
-                                      const groupProtein = item.items.reduce((s, it) => s + (it.protein || 0), 0);
-                                      return (
-                                        <div key={item.id} className="py-3 first:pt-0 last:pb-0 space-y-2">
-                                          <div className="flex justify-between items-center">
-                                            <div>
-                                              <span className="text-xs font-bold text-zinc-300 block">📦 {item.name}</span>
-                                              <span className="text-[10px] text-zinc-400 font-bold">
-                                                複合包共 {item.items.length} 項目 · {groupKcal} kcal
-                                              </span>
+                              {isExpanded && (
+                                <div className="p-3 divide-y divide-zinc-850 animate-in fade-in duration-205">
+                                  {list.length === 0 ? (
+                                    <div className="text-center text-zinc-400 text-xs py-6">
+                                      尚無此餐飲食紀錄
+                                    </div>
+                                  ) : (
+                                    list.map((item, idx) => {
+                                      // Render Group Items
+                                      if ("type" in item && item.type === "group") {
+                                        const groupKcal = item.items.reduce((s, it) => s + (it.kcal || 0), 0);
+                                        const groupProtein = item.items.reduce((s, it) => s + (it.protein || 0), 0);
+                                        return (
+                                          <div key={item.id} className="py-3 first:pt-0 last:pb-0 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                              <div>
+                                                <span className="text-xs font-bold text-zinc-300 block">📦 {item.name}</span>
+                                                <span className="text-[10px] text-zinc-400 font-bold">
+                                                  複合包共 {item.items.length} 項目 · {groupKcal} kcal
+                                                </span>
+                                              </div>
+                                              <div className="flex gap-1.5">
+                                                <button 
+                                                  onClick={() => openAdjustItemModal(cat, idx)}
+                                                  className="text-[10px] font-bold border border-zinc-800 hover:border-zinc-700 bg-black/50 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded-lg"
+                                                >
+                                                  重估群組
+                                                </button>
+                                                <button 
+                                                  onClick={() => deleteMealItem(cat, idx)}
+                                                  className="text-[10px] font-bold border border-rose-500/10 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1 rounded-lg"
+                                                >
+                                                  移除
+                                                </button>
+                                              </div>
                                             </div>
-                                            <div className="flex gap-1.5">
-                                              <button 
-                                                onClick={() => openAdjustItemModal(cat, idx)}
-                                                className="text-[10px] font-bold border border-zinc-800 hover:border-zinc-700 bg-black/50 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded-lg"
-                                              >
-                                                重估群組
-                                              </button>
-                                              <button 
-                                                onClick={() => deleteMealItem(cat, idx)}
-                                                className="text-[10px] font-bold border border-rose-500/10 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-2.5 py-1 rounded-lg"
-                                              >
-                                                移除
-                                              </button>
+                                            {/* Subitems lists */}
+                                            <div className="pl-3 border-l-2 border-zinc-800 space-y-1.5 pt-1">
+                                              {item.items.map((sub, sIdx) => (
+                                                <div key={sub.id} className="flex justify-between items-center text-[11px] text-zinc-400 hover:text-zinc-300">
+                                                  <span>{sub.name} ({sub.amount ? `${sub.amount}g` : '份'})</span>
+                                                  <div className="flex items-center gap-3">
+                                                    <span className="font-mono text-[10px]">{sub.kcal} kcal · 蛋 {sub.protein}g</span>
+                                                    <button 
+                                                      onClick={() => openAdjustSubItemModal(cat, idx, sIdx)}
+                                                      className="text-zinc-400 hover:text-indigo-400 p-0.5 cursor-pointer"
+                                                      title="微調此項目"
+                                                    >
+                                                      <Edit2 className="w-3 h-3" />
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              ))}
                                             </div>
                                           </div>
-                                          {/* Subitems lists */}
-                                          <div className="pl-3 border-l-2 border-zinc-800 space-y-1.5 pt-1">
-                                            {item.items.map((sub, sIdx) => (
-                                              <div key={sub.id} className="flex justify-between items-center text-[11px] text-zinc-400 hover:text-zinc-300">
-                                                <span>{sub.name} ({sub.amount ? `${sub.amount}g` : '份'})</span>
-                                                <div className="flex items-center gap-3">
-                                                  <span className="font-mono text-[10px]">{sub.kcal} kcal · 蛋 {sub.protein}g</span>
-                                                  <button 
-                                                    onClick={() => openAdjustSubItemModal(cat, idx, sIdx)}
-                                                    className="text-zinc-400 hover:text-indigo-400 p-0.5"
-                                                    title="微調此項目"
-                                                  >
-                                                    <Edit2 className="w-3 h-3" />
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            ))}
+                                        );
+                                      }
+
+                                      // Render Standard single MealItem
+                                      const singleItem = item as MealItem;
+                                      return (
+                                        <div key={singleItem.id} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0 text-xs">
+                                          <div className="min-w-0 flex-1 pr-3">
+                                            <span className="font-extrabold text-zinc-200 block truncate">{singleItem.name}</span>
+                                            <span className="text-[10px] text-zinc-400 block mt-0.5">
+                                              {singleItem.amount ? `${singleItem.amount}克 · ` : ""}{singleItem.count && singleItem.count !== 1 ? `${singleItem.count}份 · ` : ""}{singleItem.kcal} kcal · 蛋 {singleItem.protein}g · 碳 {singleItem.carb}g · 脂 {singleItem.fat}g
+                                            </span>
+                                          </div>
+                                          <div className="flex gap-2 shrink-0">
+                                            <button 
+                                              onClick={() => openAdjustItemModal(cat, idx)}
+                                              className="text-zinc-400 hover:text-zinc-200 p-1 bg-black/50 border border-zinc-850 hover:border-zinc-800 rounded-lg transition-colors cursor-pointer"
+                                              title="微調比例 / 克數 / 數量"
+                                            >
+                                              <Sliders className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button 
+                                              onClick={() => deleteMealItem(cat, idx)}
+                                              className="text-zinc-400 hover:text-rose-400 p-1 bg-black/50 border border-zinc-850 hover:border-zinc-800 rounded-lg transition-colors cursor-pointer"
+                                              title="刪除"
+                                            >
+                                              <Trash className="w-3.5 h-3.5" />
+                                            </button>
                                           </div>
                                         </div>
                                       );
-                                    }
-
-                                    // Render Standard single MealItem
-                                    const singleItem = item as MealItem;
-                                    return (
-                                      <div key={singleItem.id} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0 text-xs">
-                                        <div className="min-w-0 flex-1 pr-3">
-                                          <span className="font-extrabold text-zinc-200 block truncate">{singleItem.name}</span>
-                                          <span className="text-[10px] text-zinc-400 block mt-0.5">
-                                            {singleItem.amount ? `${singleItem.amount}克 · ` : ""}{singleItem.count && singleItem.count !== 1 ? `${singleItem.count}份 · ` : ""}{singleItem.kcal} kcal · 蛋 {singleItem.protein}g · 碳 {singleItem.carb}g · 脂 {singleItem.fat}g
-                                          </span>
-                                        </div>
-                                        <div className="flex gap-2 shrink-0">
-                                          <button 
-                                            onClick={() => openAdjustItemModal(cat, idx)}
-                                            className="text-zinc-400 hover:text-zinc-200 p-1 bg-black/50 border border-zinc-850 hover:border-zinc-800 rounded-lg transition-colors cursor-pointer"
-                                            title="微調比例 / 克數 / 數量"
-                                          >
-                                            <Sliders className="w-3.5 h-3.5" />
-                                          </button>
-                                          <button 
-                                            onClick={() => deleteMealItem(cat, idx)}
-                                            className="text-zinc-400 hover:text-rose-400 p-1 bg-black/50 border border-zinc-850 hover:border-zinc-800 rounded-lg transition-colors cursor-pointer"
-                                            title="刪除"
-                                          >
-                                            <Trash className="w-3.5 h-3.5" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })
-                                )}
-                              </div>
+                                    })
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1756,7 +1858,7 @@ export default function App() {
 
                   {/* Weight Predictor ETA summary */}
                   {settings.goalWeight > 0 && settings.weight > 0 && (
-                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-3xl p-5 space-y-2">
+                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-3xl p-5 space-y-4">
                       <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-1">體重管理進度預估</h4>
                       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
                         <div>
@@ -1788,6 +1890,36 @@ export default function App() {
                           })()}
                         </div>
                       </div>
+
+                      {/* Weight Progress Bar with zero-division safeguard */}
+                      {(() => {
+                        const startW = settings.weight || 0;
+                        const goalW = settings.goalWeight || 0;
+                        const totalDiff = Math.abs(startW - goalW);
+                        const leftDiff = Math.abs(latestWeight - goalW);
+                        let progPct = 0;
+                        if (totalDiff > 0) {
+                          progPct = Math.min(100, Math.max(0, (1 - leftDiff / totalDiff) * 100));
+                        } else if (latestWeight === goalW) {
+                          progPct = 100;
+                        }
+
+                        return (
+                          <div className="border-t border-zinc-850/60 pt-3.5">
+                            <div className="flex justify-between text-[10px] text-zinc-400 font-extrabold mb-2">
+                              <span>起始基準 ({startW} kg)</span>
+                              <span className="text-indigo-400">進度: {progPct.toFixed(0)}%</span>
+                              <span>目標體重 ({goalW} kg)</span>
+                            </div>
+                            <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden relative border border-zinc-850/80">
+                              <div 
+                                className="bg-indigo-500 h-full rounded-full transition-all duration-500" 
+                                style={{ width: `${progPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -2027,13 +2159,22 @@ export default function App() {
                                       </div>
                                     </div>
                                     
-                                    <button
-                                      onClick={() => deleteFoodLibraryItem(realIdx)}
-                                      className="text-zinc-600 hover:text-rose-400 p-1.5 bg-black/50 border border-zinc-850 rounded-lg hover:border-rose-500/10 transition-colors cursor-pointer shrink-0"
-                                      title="刪除品項"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
+                                    <div className="flex gap-1 shrink-0">
+                                      <button
+                                        onClick={() => openEditFoodLibraryItem(realIdx)}
+                                        className="text-zinc-600 hover:text-indigo-400 p-1.5 bg-black/50 border border-zinc-850 rounded-lg hover:border-indigo-500/10 transition-colors cursor-pointer shrink-0"
+                                        title="編輯品項"
+                                      >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => deleteFoodLibraryItem(realIdx)}
+                                        className="text-zinc-600 hover:text-rose-400 p-1.5 bg-black/50 border border-zinc-850 rounded-lg hover:border-rose-500/10 transition-colors cursor-pointer shrink-0"
+                                        title="刪除品項"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   </div>
 
                                   {/* Nutrition Grid */}
@@ -3015,6 +3156,201 @@ export default function App() {
             >
               確認登錄追加
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ────────────────── MODAL: EDIT FOOD LIBRARY ITEM ────────────────── */}
+      {showEditFoodModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end lg:justify-center lg:items-center">
+          <div className="bg-zinc-900 border-t lg:border border-zinc-800 rounded-t-3xl lg:rounded-3xl w-full max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+            <div className="flex justify-between items-center p-4 border-b border-zinc-850">
+              <h3 className="text-sm font-black text-zinc-100">編輯食物庫品項</h3>
+              <button 
+                onClick={() => {
+                  setShowEditFoodModal(false);
+                  setEditFoodIndex(null);
+                }}
+                className="text-zinc-400 hover:text-zinc-300 bg-black/50 p-1.5 rounded-lg border border-zinc-850 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={saveEditedFoodLibraryItem} className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-16 text-zinc-400 font-bold">食物名稱*</span>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="例如：茶葉蛋"
+                  className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 font-semibold"
+                  value={eName}
+                  onChange={(e) => setEName(e.target.value)}
+                />
+              </div>
+
+              {editFoodIndex !== null && !("type" in db.foods[editFoodIndex] && db.foods[editFoodIndex].type === "group") && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="w-16 text-zinc-400 font-bold">食物分類</span>
+                    <div className="flex gap-1.5 flex-wrap flex-1">
+                      {["澱粉", "蛋白質", "蔬菜", "飲料", "點心", "其他"].map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setECategory(cat)}
+                          className={`text-[10px] font-bold py-1 px-2.5 rounded-lg border transition-all cursor-pointer ${
+                            eCategory === cat
+                              ? "bg-indigo-600/20 border-indigo-500 text-indigo-400 font-black shadow-sm"
+                              : "bg-black/50 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-16 text-zinc-400 font-bold">估計份量</span>
+                      <input 
+                        type="number" 
+                        placeholder="選填克數"
+                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right"
+                        value={eAmount}
+                        onChange={(e) => setEAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                      />
+                      <span className="text-zinc-600 font-bold w-4">g</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="w-16 text-zinc-400 font-bold">熱量*</span>
+                      <input 
+                        type="number" 
+                        required
+                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right font-semibold"
+                        value={eKcal}
+                        onChange={(e) => setEKcal(e.target.value === "" ? "" : Number(e.target.value))}
+                      />
+                      <span className="text-zinc-600 font-bold w-4">大卡</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 border-t border-zinc-850 pt-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-zinc-400 font-bold">蛋白質*</span>
+                      <div className="flex items-center gap-1">
+                        <input 
+                          type="number" 
+                          required
+                          className="bg-black/50 border border-zinc-850 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
+                          value={eProtein}
+                          onChange={(e) => setEProtein(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                        <span className="text-zinc-600 font-bold">g</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <span className="text-zinc-400 font-bold">碳水</span>
+                      <div className="flex items-center gap-1">
+                        <input 
+                          type="number" 
+                          className="bg-black/50 border border-zinc-850 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
+                          value={eCarb}
+                          onChange={(e) => setECarb(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                        <span className="text-zinc-600 font-bold">g</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <span className="text-zinc-400 font-bold">脂肪</span>
+                      <div className="flex items-center gap-1">
+                        <input 
+                          type="number" 
+                          className="bg-black/50 border border-zinc-850 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
+                          value={eFat}
+                          onChange={(e) => setEFat(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
+                        <span className="text-zinc-600 font-bold">g</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Advanced inputs expansion */}
+                  <div 
+                    onClick={() => setShowEditAdvanced(!showEditAdvanced)}
+                    className="text-zinc-400 hover:text-zinc-300 font-bold flex items-center gap-1 cursor-pointer select-none py-1"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showEditAdvanced ? "rotate-180" : ""}`} />
+                    進階成分微調 (纖維、精緻糖、鈉離子)
+                  </div>
+
+                  {showEditAdvanced && (
+                    <div className="space-y-3 bg-black/50/60 p-3 rounded-xl border border-zinc-850 animate-in fade-in duration-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-400 font-bold">膳食纖維：</span>
+                        <div className="flex items-center gap-1.5">
+                          <input 
+                            type="number" 
+                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            value={eFiber}
+                            onChange={(e) => setEFiber(e.target.value === "" ? "" : Number(e.target.value))}
+                          />
+                          <span className="text-zinc-600 font-bold">克</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-400 font-bold">精製糖：</span>
+                        <div className="flex items-center gap-1.5">
+                          <input 
+                            type="number" 
+                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            value={eSugar}
+                            onChange={(e) => setESugar(e.target.value === "" ? "" : Number(e.target.value))}
+                          />
+                          <span className="text-zinc-600 font-bold">克</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-400 font-bold">鈉離子：</span>
+                        <div className="flex items-center gap-1.5">
+                          <input 
+                            type="number" 
+                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            value={eSodium}
+                            onChange={(e) => setESodium(e.target.value === "" ? "" : Number(e.target.value))}
+                          />
+                          <span className="text-zinc-600 font-bold">mg</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="flex gap-2.5 pt-4 border-t border-zinc-850">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditFoodModal(false);
+                    setEditFoodIndex(null);
+                  }}
+                  className="flex-1 bg-black/50 hover:bg-zinc-850 text-zinc-400 border border-zinc-850 py-2.5 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold shadow cursor-pointer"
+                >
+                  儲存修改
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
