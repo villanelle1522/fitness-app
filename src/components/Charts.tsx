@@ -176,13 +176,12 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
     let getYCoordW = (val: number) => 50; // fallback
     if (hasWeight) {
       const wVals = weightPoints.map((p) => p.val);
-      minW = Math.min(...wVals, goalWeight);
-      maxW = Math.max(...wVals, goalWeight);
+      const actualMaxW = Math.max(...wVals, goalWeight);
+      const actualMinW = Math.min(...wVals, goalWeight);
+      minW = actualMinW - 2;
+      maxW = actualMaxW + 2;
       const wRange = maxW - minW || 1;
-      const padMinW = minW - wRange * 0.15;
-      const padMaxW = maxW + wRange * 0.15;
-      const padRangeW = padMaxW - padMinW || 1;
-      getYCoordW = (val: number) => 100 - ((val - padMinW) / padRangeW) * 80 - 10;
+      getYCoordW = (val: number) => 100 - ((val - minW) / wRange) * 80 - 10;
       weightPath = weightPoints
         .map((p, idx) => `${idx === 0 ? "M" : "L"}${getXCoord(p.index)} ${getYCoordW(p.val)}`)
         .join(" ");
@@ -194,13 +193,12 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
     let getYCoordF = (val: number) => 50; // fallback
     if (hasBodyfat) {
       const fVals = bodyfatPoints.map((p) => p.val);
-      minF = Math.min(...fVals);
-      maxF = Math.max(...fVals);
+      const actualMaxF = Math.max(...fVals);
+      const actualMinF = Math.min(...fVals);
+      minF = Math.max(0, actualMinF - 1.5);
+      maxF = actualMaxF + 1.5;
       const fRange = maxF - minF || 1;
-      const padMinF = minF - fRange * 0.15;
-      const padMaxF = maxF + fRange * 0.15;
-      const padRangeF = padMaxF - padMinF || 1;
-      getYCoordF = (val: number) => 100 - ((val - padMinF) / padRangeF) * 80 - 10;
+      getYCoordF = (val: number) => 100 - ((val - minF) / fRange) * 80 - 10;
       bodyfatPath = bodyfatPoints
         .map((p, idx) => `${idx === 0 ? "M" : "L"}${getXCoord(p.index)} ${getYCoordF(p.val)}`)
         .join(" ");
@@ -223,7 +221,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
             </div>
           </div>
           
-          <div className="relative h-[90px] w-full border-b border-zinc-800/80 pb-1">
+          <div className="relative h-[160px] w-full border-b border-zinc-800/80 pb-1">
             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="overflow-visible">
               {/* Center divider line */}
               <line x1="0" y1="50" x2="100" y2="50" stroke="#27272a" strokeWidth="0.5" strokeDasharray="2,2" />
