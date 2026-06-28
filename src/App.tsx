@@ -2616,6 +2616,7 @@ export default function App() {
                       <div className="flex items-center gap-2 text-xs">
                         <span className="w-20 text-zinc-400 font-bold">體重 (公斤):</span>
                         <input 
+                          key={`weight-${currentDate}-${dayRecord.weight || ""}`}
                           type="number"
                           className="bg-black/50 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 font-semibold"
                           placeholder="例: 70.2"
@@ -2632,6 +2633,7 @@ export default function App() {
                       <div className="flex items-center gap-2 text-xs">
                         <span className="w-20 text-zinc-400 font-bold">體脂率 (%):</span>
                         <input 
+                          key={`bodyfat-${currentDate}-${dayRecord.bodyfat || ""}`}
                           type="number"
                           className="bg-black/50 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 font-semibold"
                           placeholder="例: 18.5"
@@ -2648,6 +2650,7 @@ export default function App() {
                       <div className="flex items-center gap-2 text-xs">
                         <span className="w-20 text-zinc-400 font-bold">運動消耗:</span>
                         <input 
+                          key={`exercise-${currentDate}-${dayRecord.exercise || ""}`}
                           type="number"
                           className="bg-black/50 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 font-semibold"
                           placeholder="重訓或跑步卡路里"
@@ -2663,6 +2666,7 @@ export default function App() {
                       <div className="flex items-center gap-2 text-xs">
                         <span className="w-20 text-zinc-400 font-bold">今日步數:</span>
                         <input 
+                          key={`steps-${currentDate}-${dayRecord.steps || ""}`}
                           type="number"
                           className="bg-black/50 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 font-semibold"
                           placeholder="例如: 8000"
@@ -3571,12 +3575,12 @@ export default function App() {
                           <div className="relative bg-zinc-950 p-2.5 rounded border border-zinc-850 flex items-center justify-between gap-2 overflow-hidden">
                             <div className="overflow-x-auto scrollbar-none flex-1 pr-1">
                               <code className="text-[10px] text-indigo-300 font-mono whitespace-nowrap">
-                                {window.location.origin}/?action=syncHealth&amp;weight=[體重]&amp;exercise=[運動大卡]&amp;steps=[步數]&amp;mode=add
+                                {window.location.origin}/?action=syncHealth&amp;weight=[體重]&amp;exercise=[運動大卡]&amp;steps=[步數]&amp;mode=overwrite
                               </code>
                             </div>
                             <button
                               onClick={() => {
-                                const url = `${window.location.origin}/?action=syncHealth&weight=[體重]&exercise=[運動大卡]&steps=[步數]&mode=add`;
+                                const url = `${window.location.origin}/?action=syncHealth&weight=[體重]&exercise=[運動大卡]&steps=[步數]&mode=overwrite`;
                                 navigator.clipboard.writeText(url);
                                 setCopiedHealthUrl(true);
                                 showToast("健康同步 API 網址已複製！", "success");
@@ -3594,7 +3598,7 @@ export default function App() {
                           </div>
                           
                           <p className="text-[10px] text-zinc-500 leading-relaxed">
-                            參數：<code className="text-zinc-400">weight</code> (體重), <code className="text-zinc-400">exercise</code> (運動大卡), <code className="text-zinc-400">steps</code> (步數), <code className="text-zinc-400">mode=add</code> (累加，否則為覆寫)
+                            參數：<code className="text-zinc-400">weight</code> (體重), <code className="text-zinc-400">exercise</code> (運動大卡), <code className="text-zinc-400">steps</code> (步數), <code className="text-zinc-400">mode=overwrite</code> (覆寫，若為 <code className="text-zinc-400">add</code> 則為累加)
                           </p>
 
                           {/* Collapsible Tutorial Accordion */}
