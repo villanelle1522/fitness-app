@@ -3614,23 +3614,23 @@ export default function App() {
                               <div className="mt-2.5 space-y-3 pl-1 text-[11px] text-zinc-400 leading-relaxed border-l-2 border-indigo-500/20 pl-3 py-1 animate-in slide-in-from-top-1 duration-150">
                                 <div>
                                   <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 1：建立全新捷徑</span>
-                                  在 iPhone 中開啟「捷徑」App，點選右上角「＋」建立一個新的捷徑，將其命名為例如「同步健康數據」。
+                                  在 iPhone 中開啟<strong className="text-zinc-100 font-extrabold">「捷徑」App</strong>，點選右上角<strong className="text-zinc-100 font-extrabold">「＋」</strong>建立一個新的捷徑，將其命名為例如<strong className="text-zinc-100 font-extrabold">「同步健康數據」</strong>。
                                 </div>
                                 <div>
                                   <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 2：獲取 Apple 內建健康資料</span>
-                                  搜尋並加入「尋找健康樣本」或「獲取健康樣本」動作（如：類型選「體重」、「活動能量」或「步數」），將值存入變數。
+                                  搜尋並加入<strong className="text-zinc-100 font-extrabold">「尋找健康樣本」</strong>或<strong className="text-zinc-100 font-extrabold">「獲取健康樣本」</strong>動作（如：類型選<strong className="text-zinc-100 font-extrabold">「體重」、「活動能量」或「步數」</strong>），將值存入變數。
                                 </div>
                                 <div>
                                   <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 3：設定傳輸網址</span>
-                                  加入「URL」動作，貼上剛剛複製的 API 網址。將網址內預設的預留標籤（如 <code className="text-zinc-300 font-mono">[體重]</code>、<code className="text-zinc-300 font-mono">[運動大卡]</code>、<code className="text-zinc-300 font-mono">[步數]</code>）刪除，替換為剛才步驟 2 獲取到的健康資料「變數」。
+                                  加入<strong className="text-zinc-100 font-extrabold">「URL」動作</strong>，<strong className="text-zinc-100 font-extrabold">貼上剛剛複製的 API 網址</strong>。將網址內預設的預留標籤（如 <code className="text-zinc-300 font-mono">[體重]</code>、<code className="text-zinc-300 font-mono">[運動大卡]</code>、<code className="text-zinc-300 font-mono">[步數]</code>）<strong className="text-indigo-300 font-extrabold">刪除並替換</strong>為剛才步驟 2 獲取到的健康資料<strong className="text-indigo-400 font-extrabold">「變數」</strong>。
                                 </div>
                                 <div>
                                   <span className="font-extrabold text-indigo-400 block mb-0.5">步驟 4：執行開啟同步</span>
-                                  加入「開啟 URL」動作，將對象設為前一步的 URL 動作結果。
+                                  加入<strong className="text-zinc-100 font-extrabold">「開啟 URL」動作</strong>，將對象設為前一步的 URL 動作結果。
                                 </div>
                                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-[10px] text-amber-400 mt-1">
                                   <span className="font-bold block mb-0.5">⚠️ 關鍵提醒：</span>
-                                  本系統為離線優先設計，數據保存在 Safari 瀏覽器中。捷徑在背景執行時，最後一步「開啟 URL」會自動啟動 Safari 瀏覽器，開啟網頁的瞬間即會將健康數據寫入您的本機紀錄中。
+                                  本系統為離線優先設計，數據保存在 <strong className="text-amber-300 font-extrabold">Safari 瀏覽器</strong>中。捷徑在背景執行時，最後一步「開啟 URL」會<strong className="text-amber-300 font-extrabold">自動啟動 Safari 瀏覽器</strong>，開啟網頁的瞬間即會將健康數據寫入您的本機紀錄中。
                                 </div>
                               </div>
                             )}
