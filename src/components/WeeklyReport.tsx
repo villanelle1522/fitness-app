@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { DBState, Settings } from "../types";
+import { DBState, Settings, isMealGroup, MealRecord } from "../types";
 import { getTodayString } from "../utils/nutrition";
 import { Target, TrendingDown, TrendingUp, Minus, AlertCircle } from "lucide-react";
 
@@ -30,8 +30,12 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
       if (day) {
         // 計算這天的熱量
         let dayKcal = 0;
-        Object.values(day.meals).flat().forEach(m => {
-          dayKcal += m.items.reduce((sum, item) => sum + item.kcal, 0);
+        (Object.values(day.meals).flat() as MealRecord[]).forEach(m => {
+          if (isMealGroup(m)) {
+            dayKcal += m.items.reduce((sum, item) => sum + (item.kcal || 0), 0);
+          } else {
+            dayKcal += m.kcal || 0;
+          }
         });
         
         if (dayKcal > 0) {

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { X, Download, Share2, Loader2, Target } from "lucide-react";
 import { toPng } from "html-to-image";
-import { DayRecord, Settings } from "../types";
+import { DayRecord, Settings, isMealGroup, MealRecord } from "../types";
 import { formatFriendlyDate } from "../utils/nutrition";
 
 interface ShareCardModalProps {
@@ -17,15 +17,25 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({ dayRecord, setti
   const [error, setError] = useState<string | null>(null);
 
   // 計算熱量
-  const meals = Object.values(dayRecord.meals).flat();
-  const totalKcal = meals.reduce((acc, g) => acc + g.items.reduce((sum, item) => sum + item.kcal, 0), 0);
+  const meals = Object.values(dayRecord.meals).flat() as MealRecord[];
+  const totalKcal = meals.reduce((acc, g) => {
+    if (isMealGroup(g)) {
+      return acc + g.items.reduce((sum, item) => sum + (item.kcal || 0), 0);
+    } else {
+      return acc + (g.kcal || 0);
+    }
+  }, 0);
   const netKcal = totalKcal - (dayRecord.exercise || 0);
   
   // 找出有照片的餐點
-  const allPhotos = [...(dayRecord.photos || [])];
+  const allPhotos: { url: string; caption?: string }[] = (dayRecord.photos || []).map(p => ({
+    url: p.url,
+    caption: "體態照片"
+  }));
+  
   meals.forEach(g => {
-    if (g.image) {
-      allPhotos.push({ url: g.image, caption: g.title });
+    if (g && (g as any).image) {
+      allPhotos.push({ url: (g as any).image, caption: g.name });
     }
   });
   

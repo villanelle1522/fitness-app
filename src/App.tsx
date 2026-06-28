@@ -15,13 +15,14 @@ import { AIFoodAnalyzer } from "./components/AIFoodAnalyzer";
 import { ShareCardModal } from "./components/ShareCardModal";
 import { WeeklyReport } from "./components/WeeklyReport";
 import { SwipeToDelete } from "./components/SwipeToDelete";
+import { AICoach } from "./components/AICoach";
 import localforage from "localforage";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Plus, Calendar, Settings as SettingsIcon, Salad, PlusCircle, Trash2, Copy,
   Flame, Droplet, Dumbbell, Scale, ChevronRight, Edit2, Download, Upload, 
   Link2, Trash, Sliders, Check, HelpCircle, X, ChevronDown, Sparkles, Zap,
-  Crown, ShieldCheck, Target, Camera, Share2
+  Crown, ShieldCheck, Target, Camera, Share2, RotateCcw
 } from "lucide-react";
 
 //  常用基礎食物範本庫 (Preset Foods Database)
@@ -259,6 +260,7 @@ export default function App() {
 
   // Confirmation Modals
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showAICoach, setShowAICoach] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // ─── Image Upload for Meals ───
@@ -1937,26 +1939,34 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2.5 w-full sm:w-auto">
+                <button
+                  onClick={() => setShowAICoach(true)}
+                  className="h-11 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-purple-500/20 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Sparkles className="w-4 h-4 animate-pulse shrink-0"/>
+                  <span>AI 教練</span>
+                </button>
                 <button
                   onClick={() => setShowShareModal(true)}
-                  className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-bold text-xs py-2 px-3.5 rounded-xl cursor-pointer border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
+                  className="h-11 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <Share2 className="w-3.5 h-3.5"/>
-                  分享卡片
+                  <Share2 className="w-4 h-4 shrink-0"/>
+                  <span>分享卡片</span>
                 </button>
                 <button
                   onClick={() => setCurrentDate(getTodayString())}
-                  className="bg-white/[0.04] hover:bg-white/[0.08] active:scale-95 border border-white/[0.05] text-zinc-200 text-zinc-300 font-bold text-xs py-2 px-3.5 rounded-xl cursor-pointer transition-colors flex-1 text-center"
+                  className="h-11 bg-zinc-800/50 hover:bg-zinc-800/80 active:scale-95 border border-zinc-700/50 text-zinc-300 font-extrabold text-xs px-3 rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-1.5"
                 >
-                  回到今天
+                  <RotateCcw className="w-4 h-4 shrink-0"/>
+                  <span>回到今天</span>
                 </button>
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs py-2 px-3.5 rounded-xl cursor-pointer border border-rose-500/20 transition-colors flex items-center justify-center gap-1.5"
+                  className="h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-rose-500/20 transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <Trash2 className="w-3.5 h-3.5"/>
-                  清空
+                  <Trash2 className="w-4 h-4 shrink-0"/>
+                  <span>清空資料</span>
                 </button>
               </div>
             </div>
@@ -2213,7 +2223,7 @@ export default function App() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <h3 className="text-xs font-black tracking-widest text-zinc-400 uppercase">今日飲食紀錄</h3>
-                          <span className="text-xs text-zinc-400">點選各餐「＋新增」或下方食物</span>
+                          <span className="text-xs text-zinc-400">點選各餐「＋」按鈕或下方食物</span>
                         </div>
 
                         {(() => {
@@ -2262,14 +2272,14 @@ export default function App() {
                                       {mealKcal} <span className="opacity-60 font-medium">/ {maxKcal}</span> 大卡
                                     </span>
                                   </div>
-                                <div className="flex items-center gap-1.5"onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <button 
                                     onClick={() => copyPreviousDayMeal(cat)}
                                     title="複製前一日此餐飲食紀錄"
-                                    className="text-[10px] font-bold border border-zinc-850 hover:border-zinc-750 bg-black/50/40 hover:bg-black/50 text-indigo-400 hover:text-indigo-300 py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                                    className="text-[10px] font-bold border border-zinc-850 hover:border-zinc-750 bg-black/50/40 hover:bg-black/50 text-indigo-400 hover:text-indigo-300 p-1.5 sm:py-1.5 sm:px-2.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
                                   >
-                                    <Copy className="w-3 h-3 text-indigo-400"/>
-                                    <span>複製前日</span>
+                                    <Copy className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-indigo-400 shrink-0"/>
+                                    <span className="hidden sm:inline">複製前日</span>
                                   </button>
                                   <button 
                                     onClick={() => {
@@ -2277,10 +2287,10 @@ export default function App() {
                                       setAddModalTab("quick");
                                       setShowAddModal(true);
                                     }}
-                                    className="text-xs font-bold bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.2)] border border-indigo-500/50 hover:shadow-[0_0_25px_rgba(79,70,229,0.4)] text-white py-1.5 px-3 rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                                    className="text-xs font-bold bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.2)] border border-indigo-500/50 hover:shadow-[0_0_25px_rgba(79,70,229,0.4)] text-white p-1.5 sm:py-1.5 sm:px-3 rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1 shrink-0"
                                   >
-                                    <Plus className="w-3.5 h-3.5"/>
-                                    新增
+                                    <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0"/>
+                                    <span className="hidden sm:inline">新增</span>
                                   </button>
                                 </div>
                               </div>
@@ -4557,6 +4567,28 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {/* ────────────────── MODAL: AI COACH ────────────────── */}
+      <AnimatePresence>
+        {showAICoach && (
+          <AICoach
+            isOpen={showAICoach}
+            onClose={() => setShowAICoach(false)}
+            settings={db.settings}
+            todayStats={{
+              kcal: loggedTotals.kcal,
+              protein: loggedTotals.protein,
+              carb: loggedTotals.carb,
+              fat: loggedTotals.fat,
+              fiber: loggedTotals.fiber,
+              sugar: loggedTotals.sugar,
+              sodium: loggedTotals.sodium,
+              water: waterTotalLogged,
+            }}
+            weightTrend={getRecentWeightTrend(db.days)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ────────────────── GLOBAL TOAST NOTIFICATION ────────────────── */}
       <AnimatePresence>

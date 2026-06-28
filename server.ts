@@ -164,6 +164,91 @@ Provide the response strictly as a JSON array matching the requested schema.`;
   }
 });
 
+// AI Coach Chatbot Endpoint
+app.post("/api/coach-chat", async (req, res): Promise<any> => {
+  try {
+    const { messages, settings, todayStats, weightTrend, customApiKey } = req.body;
+
+    let activeAi = ai;
+    if (customApiKey && customApiKey.trim()) {
+      activeAi = new GoogleGenAI({
+        apiKey: customApiKey.trim(),
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
+        },
+      });
+    }
+
+    if (!activeAi) {
+      return res.status(500).json({
+        error: "Gemini API client is not initialized. Please configure your API key in the App Settings panel (設定) or configure GEMINI_API_KEY in Settings > Secrets of AI Studio.",
+      });
+    }
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Missing or invalid messages array" });
+    }
+
+    const profile = settings || {};
+    const targets = profile.targets || {};
+    const stats = todayStats || { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0, water: 0 };
+
+    const systemInstruction = `You are a professional, highly encouraging fitness trainer, dietician, and health coach named 「FitAI 智慧教練」.
+Your job is to provide specific, professional, and personalized health, diet, recipe, and exercise advice based on the user's active logs.
+Always reply in Traditional Chinese (zh-TW) with professional terminology used in Taiwan.
+Be concise but incredibly helpful and motivating. Offer concrete food options (e.g. 雞胸肉, 無糖豆漿, 地瓜, 水煮蛋) and suggest realistic plans.
+
+Here is the user's active profile and logs context:
+- User Profile: ${profile.sex || "未設定"}, ${profile.age || "未設定"}歲, ${profile.height || "未設定"}cm, 目前體重: ${profile.weight || "未設定"}kg
+- Fitness Goal: ${profile.mode || "維持"} (目標體重: ${profile.goalWeight || "未設定"}kg)
+- Daily Targets:
+  - Calories: ${targets.kcal || 0} kcal
+  - Protein: ${targets.protein || 0} g
+  - Carbohydrates: ${targets.carb || 0} g
+  - Fat: ${targets.fat || 0} g
+  - Fiber: ${targets.fiber || 0} g
+  - Sugar: ${targets.sugar || 0} g max
+  - Sodium: ${targets.sodium || 2300} mg max
+- Today's Logs:
+  - Calories Consumed: ${stats.kcal || 0} kcal (${Math.round((stats.kcal / (targets.kcal || 1)) * 100)}% of goal)
+  - Protein: ${stats.protein || 0} g / ${targets.protein || 0} g
+  - Carbohydrates: ${stats.carb || 0} g / ${targets.carb || 0} g
+  - Fat: ${stats.fat || 0} g / ${targets.fat || 0} g
+  - Fiber: ${stats.fiber || 0} g / ${targets.fiber || 0} g
+  - Sugar: ${stats.sugar || 0} g / ${targets.sugar || 0} g
+  - Sodium: ${stats.sodium || 0} mg / ${targets.sodium || 2300} mg
+  - Water Logged: ${stats.water || 0} ml (Target: ${profile.waterTarget || 2000} ml)
+- Recent Weight Trend: ${weightTrend ? `${weightTrend} kg/week` : "暫無足夠趨勢數據"}
+
+Review these metrics and give professional, smart feedback when the user asks. If they ask for dinner recommendations, count how much protein/carb/kcal they have left for today and design a perfect meal! Always reference their current goals (e.g. 減脂/增肌).`;
+
+    const contents = messages.map((m: any) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    const response = await activeAi.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents,
+      config: {
+        systemInstruction,
+        temperature: 0.7,
+      },
+    });
+
+    const replyText = response.text;
+    return res.json({ result: replyText });
+  } catch (error: any) {
+    console.error("AI Coach Chat Error:", error);
+    return res.status(500).json({
+      error: "Failed to communicate with AI Coach.",
+      details: error.message || error,
+    });
+  }
+});
+
 // App Info and Health Check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", geminiConfigured: !!ai });
