@@ -13,6 +13,7 @@ export interface MealItem {
   category?: string; // e.g. "澱粉", "蛋白質", "蔬菜", "點心", "飲料", "其他"
   time?: string; // e.g. "12:35"
   image?: string; // Base64 image
+  price?: number; // Optional price
 }
 
 export interface MealGroup {
@@ -23,6 +24,7 @@ export interface MealGroup {
   time?: string; // e.g. "12:35"
   category?: string; // e.g. "澱粉", "蛋白質", "蔬菜", "點心", "飲料", "其他"
   image?: string; // Base64 image
+  price?: number; // Optional price for the group
 }
 
 export type MealRecord = MealItem | MealGroup;

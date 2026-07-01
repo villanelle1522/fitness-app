@@ -198,6 +198,7 @@ export default function App() {
   const [mName, setMName] = useState("");
   const [mGroup, setMGroup] = useState("");
   const [mAmount, setMAmount] = useState<number | "">("");
+  const [mPrice, setMPrice] = useState<number | "">("");
   const [mCount, setMCount] = useState<number>(1);
   const [mKcal, setMKcal] = useState<number | "">("");
   const [mProtein, setMProtein] = useState<number | "">("");
@@ -222,11 +223,13 @@ export default function App() {
   const [eSugar, setESugar] = useState<number | "">("");
   const [eSodium, setESodium] = useState<number | "">("");
   const [eAmount, setEAmount] = useState<number | "">("");
+  const [ePrice, setEPrice] = useState<number | "">("");
   const [showEditAdvanced, setShowEditAdvanced] = useState(false);
   const [editedGroupItems, setEditedGroupItems] = useState<MealItem[]>([]);
 
   // Meal accordion expand state
   const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
+  const [collapsedGroupItems, setCollapsedGroupItems] = useState<Record<string, boolean>>({});
 
   // Adjustment Modal State
   const [showAdjustModal, setShowAdjustModal] = useState(false);
@@ -240,7 +243,8 @@ export default function App() {
     customGram: number;
     customCount: number;
     customName?: string;
-    adjustMode: "ratio"| "gram"| "count";
+    customPrice?: number | "";
+    adjustMode: "ratio" | "gram" | "count";
     isLib?: boolean;
     editedNutrients: {
       kcal: number;
@@ -649,9 +653,10 @@ export default function App() {
       fiber: Number(mFiber) || 0,
       sugar: Number(mSugar) || 0,
       sodium: Number(mSodium) || 0,
-      amount: mAmount === ""? null : Number(mAmount),
+      amount: mAmount === "" ? null : Number(mAmount),
       count: mCount || 1,
       category: mCategory,
+      price: mPrice === "" ? undefined : Number(mPrice),
     };
 
     addMealsToDay(addModalCategory, [newItem], mGroup, mSaveToLib);
@@ -660,6 +665,7 @@ export default function App() {
     setMName("");
     setMGroup("");
     setMAmount("");
+    setMPrice("");
     setMCount(1);
     setMKcal("");
     setMProtein("");
@@ -691,6 +697,33 @@ export default function App() {
     });
   };
 
+  const deleteMealSubItem = (category: string, index: number, subIndex: number) => {
+    const day = { ...getDayRecord(currentDate) };
+    const updatedMeals = { ...day.meals };
+    const targetMealList = [...updatedMeals[category as keyof typeof day.meals]];
+    const group = targetMealList[index];
+    if (group && "type" in group && group.type === "group") {
+      const updatedGroup = { ...group, items: [...group.items] };
+      updatedGroup.items.splice(subIndex, 1);
+      if (updatedGroup.items.length === 0) {
+        targetMealList.splice(index, 1);
+      } else {
+        targetMealList[index] = updatedGroup;
+      }
+      updatedMeals[category as keyof typeof day.meals] = targetMealList;
+      saveDb({
+        ...db,
+        days: {
+          ...db.days,
+          [currentDate]: {
+            ...day,
+            meals: updatedMeals,
+          },
+        },
+      });
+    }
+  };
+
   // ─── Adjustments ───
   const openAdjustItemModal = (category: string, idx: number) => {
     const day = getDayRecord(currentDate);
@@ -707,6 +740,7 @@ export default function App() {
         idx,
         origItem: dummyGroup,
         customName: dummyGroup.name,
+        customPrice: item.price !== undefined ? item.price : "",
         customRatio: 1,
         customGram: 0,
         customCount: 1,
@@ -729,6 +763,7 @@ export default function App() {
         idx,
         origItem: { ...singleItem },
         customName: singleItem.name,
+        customPrice: singleItem.price !== undefined ? singleItem.price : "",
         customRatio: 1,
         customGram: singleItem.amount || 0,
         customCount: singleItem.count || 1,
@@ -761,6 +796,7 @@ export default function App() {
       subIdx,
       origItem: { ...item },
       customName: item.name,
+      customPrice: item.price !== undefined ? item.price : "",
       customRatio: 1,
       customGram: item.amount || 0,
       customCount: item.count || 1,
@@ -843,7 +879,7 @@ export default function App() {
 
   const saveAdjustment = () => {
     if (!adjustContext) return;
-    const { type, meal, idx, subIdx, editedNutrients, customGram, customCount, customName, adjustMode } = adjustContext;
+    const { type, meal, idx, subIdx, editedNutrients, customGram, customCount, customName, customPrice, adjustMode } = adjustContext;
     const day = { ...getDayRecord(currentDate) };
     const updatedMeals = { ...day.meals };
 
@@ -856,6 +892,7 @@ export default function App() {
           ...target,
           ...editedNutrients,
           name: customName || target.name,
+          price: customPrice === "" ? undefined : Number(customPrice),
         };
         saveDb({ ...db, foods: updatedFoods });
       }
@@ -864,6 +901,7 @@ export default function App() {
       const grp = updatedMeals[meal as keyof typeof updatedMeals][idx!] as MealGroup;
       if (grp) {
         grp.name = customName || grp.name;
+        grp.price = customPrice === "" ? undefined : Number(customPrice);
         const origKcal = grp.items.reduce((sum, s) => sum + (s.kcal || 0), 0) || 1;
         const newKcal = editedNutrients.kcal;
         const ratio = newKcal / origKcal;
@@ -889,6 +927,7 @@ export default function App() {
           name: customName || grp.items[subIdx!].name,
           amount: adjustMode === "gram"? customGram : grp.items[subIdx!].amount,
           count: adjustMode === "count"? customCount : grp.items[subIdx!].count,
+          price: customPrice === "" ? undefined : Number(customPrice),
         };
       }
     } else {
@@ -901,6 +940,7 @@ export default function App() {
           name: customName || item.name,
           amount: adjustMode === "gram"? customGram : item.amount,
           count: adjustMode === "count"? customCount : item.count,
+          price: customPrice === "" ? undefined : Number(customPrice),
         };
       }
     }
@@ -1114,10 +1154,11 @@ export default function App() {
   
   // Calculate total calories & macro values logged for the current active date
   const loggedTotals = useMemo(() => {
-    const totals = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 };
+    const totals = { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0, price: 0 };
     Object.values(dayRecord.meals).forEach((mealList) => {
       mealList.forEach((it) => {
         if ("type"in it && it.type === "group") {
+          totals.price += it.price || 0;
           it.items.forEach((sub) => {
             totals.kcal += sub.kcal || 0;
             totals.protein += sub.protein || 0;
@@ -1126,6 +1167,9 @@ export default function App() {
             totals.fiber += sub.fiber || 0;
             totals.sugar += sub.sugar || 0;
             totals.sodium += sub.sodium || 0;
+            if (it.price === undefined || it.price === 0) {
+              totals.price += sub.price || 0;
+            }
           });
         } else {
           const singleItem = it as MealItem;
@@ -1136,6 +1180,7 @@ export default function App() {
           totals.fiber += singleItem.fiber || 0;
           totals.sugar += singleItem.sugar || 0;
           totals.sodium += singleItem.sodium || 0;
+          totals.price += singleItem.price || 0;
         }
       });
     });
@@ -1148,6 +1193,7 @@ export default function App() {
       fiber: Math.round(totals.fiber * 10) / 10,
       sugar: Math.round(totals.sugar * 10) / 10,
       sodium: Math.round(totals.sodium),
+      price: Math.round(totals.price),
     };
   }, [dayRecord.meals]);
 
@@ -1635,6 +1681,7 @@ export default function App() {
     const item = db.foods[idx];
     setEditFoodIndex(idx);
     setEName(item.name);
+    setEPrice(item.price ?? "");
     setECategory(detectCategory(item));
     if ("type"in item && item.type === "group") {
       setEKcal("");
@@ -1671,6 +1718,7 @@ export default function App() {
       updatedFoods[editFoodIndex] = {
         ...item,
         name: eName,
+        price: ePrice === "" ? undefined : Number(ePrice),
         items: editedGroupItems,
       };
     } else {
@@ -1686,6 +1734,7 @@ export default function App() {
         sugar: Number(eSugar) || 0,
         sodium: Number(eSodium) || 0,
         amount: eAmount === ""? null : Number(eAmount),
+        price: ePrice === "" ? undefined : Number(ePrice),
       } as MealItem;
     }
     saveDb({ ...db, foods: updatedFoods });
@@ -1787,7 +1836,7 @@ export default function App() {
   }
 
   return (
-    <div id="root"className="min-h-screen flex flex-col bg-[#050507] text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white pb-[80px] lg:pb-0 relative overflow-x-hidden max-w-[480px] lg:max-w-none mx-auto w-full">
+    <div id="root"className="min-h-screen flex flex-col bg-[#050507] text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white pb-[80px] md:pb-0 relative overflow-x-hidden max-w-[480px] md:max-w-none mx-auto w-full">
       
       {/* Premium Tech Dot Grid & Faint Ambient Light (Allows Glassmorphism to Blur and Stand Out) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#040406]">
@@ -1802,10 +1851,10 @@ export default function App() {
       </div>
       
       {/* Responsive Left Fixed Sidebar for Desktop / Bottom Nav for Mobile */}
-      <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:overflow-hidden relative z-10 w-full">
+      <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden relative z-10 w-full">
         
         {/* Desktop Left Navigation Sidebar */}
-        <nav className="hidden lg:flex flex-col w-[250px] bg-zinc-950/80 border-r border-white/10 backdrop-blur-2xl shrink-0 h-screen sticky top-0 p-5 justify-between relative z-20">
+        <nav className="hidden md:flex flex-col w-[250px] bg-zinc-950/80 border-r border-white/10 backdrop-blur-2xl shrink-0 h-screen sticky top-0 p-5 justify-between relative z-20">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <div className="bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white p-2 rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.3)] ring-1 ring-white/10">
@@ -1892,7 +1941,7 @@ export default function App() {
         </nav>
 
         {/* Mobile Navigation Header */}
-        <header className="lg:hidden flex justify-between items-center w-full max-w-[480px] mx-auto bg-zinc-950/75 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-40">
+        <header className="md:hidden flex justify-between items-center w-full max-w-[480px] mx-auto bg-zinc-950/75 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-40">
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-indigo-400"/>
             <h1 className="text-sm font-black tracking-tight">健身飲食紀錄</h1>
@@ -1906,12 +1955,12 @@ export default function App() {
         <main 
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          className="flex-1 w-full p-4 sm:p-6 lg:p-8 lg:h-full lg:overflow-y-auto overflow-x-hidden"
+          className="flex-1 w-full p-4 sm:p-6 md:p-8 md:h-full md:overflow-y-auto overflow-x-hidden"
         >
           
           {/* Header Action / Date Navigator (Active only when activeTab is "today"or "history") */}
           {activeTab === "today"&& (
-            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-6 bg-white/[0.04] backdrop-blur-xl border border-white/[0.05] rounded-2xl p-4 shadow-xl">
+            <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 mb-6 bg-white/[0.04] backdrop-blur-xl border border-white/[0.05] rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between sm:justify-start gap-4">
                 <button 
                   onClick={() => {
@@ -1941,31 +1990,31 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2.5 w-full sm:w-auto">
+              <div className="grid grid-cols-2 sm:flex sm:flex-row sm:flex-wrap xl:flex-nowrap gap-2.5 w-full xl:w-auto mt-2 xl:mt-0">
                 <button
                   onClick={() => setShowAICoach(true)}
-                  className="h-11 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-purple-500/20 transition-colors flex items-center justify-center gap-1.5"
+                  className="h-11 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-purple-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
                 >
                   <Sparkles className="w-4 h-4 animate-pulse shrink-0"/>
                   <span>AI 教練</span>
                 </button>
                 <button
                   onClick={() => setShowShareModal(true)}
-                  className="h-11 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5"
+                  className="h-11 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
                 >
                   <Share2 className="w-4 h-4 shrink-0"/>
                   <span>分享卡片</span>
                 </button>
                 <button
                   onClick={() => setCurrentDate(getTodayString())}
-                  className="h-11 bg-zinc-800/50 hover:bg-zinc-800/80 active:scale-95 border border-zinc-700/50 text-zinc-300 font-extrabold text-xs px-3 rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                  className="h-11 bg-zinc-800/50 hover:bg-zinc-800/80 active:scale-95 border border-zinc-700/50 text-zinc-300 font-extrabold text-xs px-3 rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
                 >
                   <RotateCcw className="w-4 h-4 shrink-0"/>
                   <span>回到今天</span>
                 </button>
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-rose-500/20 transition-colors flex items-center justify-center gap-1.5"
+                  className="h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-rose-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
                 >
                   <Trash2 className="w-4 h-4 shrink-0"/>
                   <span>清空資料</span>
@@ -2004,15 +2053,30 @@ export default function App() {
                         <div className="relative group h-full">
                           <MouseGlow />
                           <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-2xl backdrop-blur-xl p-4 flex flex-col justify-between h-full space-y-4">
-                            <div className="flex items-center gap-2">
-                              <Flame className="w-4 h-4 text-indigo-400"/>
-                              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">熱量消耗進度</span>
+                            <div className="flex justify-between items-center w-full">
+                              <div className="flex items-center gap-2">
+                                <Flame className="w-4 h-4 text-indigo-400"/>
+                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">熱量消耗進度</span>
+                              </div>
+                              {loggedTotals.price > 0 && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                  <span className="text-[10px] text-emerald-400 font-black">今日花費 ${loggedTotals.price}</span>
+                                </div>
+                              )}
                             </div>
                           
                           <div className="flex items-center gap-4">
                             {/* SVG Progress Ring */}
                             <div className="relative w-18 h-18 shrink-0">
-                              <svg className="-rotate-90 w-full h-full"viewBox="0 0 96 96">
+                              {loggedTotals.kcal >= kcalTarget && (
+                                <motion.div
+                                  className="absolute inset-0 rounded-full border-2 border-indigo-500/30"
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: [0, 0.8, 0], scale: [0.8, 1.2, 1.4] }}
+                                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                                />
+                              )}
+                              <svg className="-rotate-90 w-full h-full relative z-10"viewBox="0 0 96 96">
                                 <circle cx="48"cy="48"r={circleRadius} fill="none"stroke="#222227"strokeWidth="10"/>
                                 <motion.circle 
                                   cx="48"
@@ -2216,6 +2280,69 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* 智慧「下一餐」推薦模組 */}
+                      <div className="bg-gradient-to-br from-indigo-900/20 to-transparent border border-indigo-500/20 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-indigo-400" />
+                          <h3 className="text-xs font-black tracking-widest text-indigo-400 uppercase">💡 根據今日剩餘配額推薦</h3>
+                        </div>
+                        {(() => {
+                          const pRatio = targets.protein ? loggedTotals.protein / targets.protein : 0;
+                          const kRatio = targets.kcal ? loggedTotals.kcal / targets.kcal : 0;
+                          const cRatio = targets.carb ? loggedTotals.carb / targets.carb : 0;
+                          
+                          let reason = "";
+                          let recs: { name: string; desc: string; }[] = [];
+                          
+                          if (pRatio < 0.7 && kRatio > 0.8) {
+                            reason = "蛋白質尚不足，但熱量已接近上限，建議補充低脂高蛋白食物：";
+                            recs = [
+                              { name: "無糖豆漿", desc: "約 130 kcal, 14g 蛋白質" },
+                              { name: "舒肥雞胸", desc: "約 110 kcal, 23g 蛋白質" },
+                              { name: "茶葉蛋", desc: "約 75 kcal, 7g 蛋白質" },
+                            ];
+                          } else if (pRatio < 0.7 && kRatio <= 0.8) {
+                            reason = "蛋白質尚有缺口，且熱量還有空間，可選擇優質蛋白質來源：";
+                            recs = [
+                              { name: "烤鮭魚", desc: "富含 Omega-3，約 200 kcal" },
+                              { name: "希臘優格", desc: "約 100 kcal, 10g 蛋白質" },
+                            ];
+                          } else if (cRatio < 0.5 && kRatio <= 0.8) {
+                            reason = "碳水化合物攝取偏低，若有運動需求可適度補充：";
+                            recs = [
+                              { name: "烤地瓜", desc: "優質複合碳水，約 130 kcal" },
+                              { name: "香蕉", desc: "快速補充能量，約 90 kcal" },
+                            ];
+                          } else if (kRatio >= 1) {
+                            reason = "熱量已達標，若有飢餓感建議以零熱量或極低熱量為主：";
+                            recs = [
+                              { name: "氣泡水", desc: "無熱量，增加飽足感" },
+                              { name: "無糖綠茶", desc: "抗氧化且無負擔" },
+                            ];
+                          } else {
+                            reason = "目前各項營養攝取比例良好！繼續保持，若需加餐可選擇：";
+                            recs = [
+                              { name: "綜合堅果", desc: "優質油脂，約 150 kcal" },
+                              { name: "蘋果", desc: "富含膳食纖維，約 60 kcal" },
+                            ];
+                          }
+
+                          return (
+                            <div className="space-y-3">
+                              <p className="text-[11px] text-zinc-400 leading-relaxed font-medium">{reason}</p>
+                              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                                {recs.map((r, i) => (
+                                  <div key={i} className="flex-shrink-0 bg-black/40 border border-zinc-800 rounded-xl px-3 py-2 flex flex-col justify-center min-w-[110px]">
+                                    <span className="text-xs font-bold text-zinc-200">{r.name}</span>
+                                    <span className="text-[9px] text-zinc-500 mt-0.5">{r.desc}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
                     </div>
 
                     {/* Right Column - Meals list and Hydration tracking */}
@@ -2247,6 +2374,17 @@ export default function App() {
                               return sum + (singleItem.kcal || 0);
                             }, 0));
                             
+                            const mealPrice = Math.round(list.reduce((sum, item) => {
+                              if ("type"in item && item.type === "group") {
+                                if (item.price !== undefined && item.price !== 0) {
+                                  return sum + item.price;
+                                }
+                                return sum + item.items.reduce((acc, sub) => acc + (sub.price || 0), 0);
+                              }
+                              const singleItem = item as MealItem;
+                              return sum + (singleItem.price || 0);
+                            }, 0));
+                            
                             const maxKcal = Math.round(kcalTarget * mealDef.ratio);
 
                             const isExpanded = !!expandedMeals[cat];
@@ -2261,7 +2399,7 @@ export default function App() {
                                 {/* Meal category Header */}
                                 <div 
                                   onClick={() => setExpandedMeals(prev => ({ ...prev, [cat]: !prev[cat] }))}
-                                  className="flex justify-between items-center bg-zinc-900/60 p-4 border-b border-zinc-850 cursor-pointer select-none hover:bg-zinc-900/80 transition-colors"
+                                  className="flex justify-between items-center bg-zinc-900/60 p-4 border-b border-zinc-850 cursor-pointer select-none hover:bg-zinc-900/80 transition-colors flex-wrap gap-2"
                                 >
                                   <div className="flex items-center gap-2">
                                     {isExpanded ? (
@@ -2273,6 +2411,11 @@ export default function App() {
                                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${isOver ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' : 'bg-zinc-800 border-zinc-750 text-zinc-400'}`}>
                                       {mealKcal} <span className="opacity-60 font-medium">/ {maxKcal}</span> 大卡
                                     </span>
+                                    {mealPrice > 0 && (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                        ${mealPrice}
+                                      </span>
+                                    )}
                                   </div>
                                 <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <button 
@@ -2344,13 +2487,26 @@ export default function App() {
                                             onEdit={() => openAdjustItemModal(cat, idx)}
                                           >
                                             <div className="py-3 first:pt-0 last:pb-0 space-y-2">
-                                              <div className="flex justify-between items-center">
+                                              <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => {
+                                                const key = `${cat}-${idx}`;
+                                                setCollapsedGroupItems(prev => ({ ...prev, [key]: !prev[key] }));
+                                              }}>
                                                 <div>
                                                   <div className="flex items-center gap-1.5 flex-wrap">
+                                                    {collapsedGroupItems[`${cat}-${idx}`] ? (
+                                                      <ChevronRight className="w-4 h-4 text-zinc-500"/>
+                                                    ) : (
+                                                      <ChevronDown className="w-4 h-4 text-zinc-500"/>
+                                                    )}
                                                     <span className="text-xs font-bold text-zinc-300 block"> {item.name}</span>
                                                     {item.time && (
                                                       <span className="inline-flex items-center px-1 py-0.5 rounded-md bg-zinc-800 text-zinc-400 text-[8px] font-mono select-none border border-zinc-700/30">
                                                          {item.time}
+                                                      </span>
+                                                    )}
+                                                    {item.price !== undefined && (
+                                                      <span className="inline-flex items-center px-1 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[8px] font-mono select-none border border-emerald-500/20">
+                                                        ${item.price}
                                                       </span>
                                                     )}
                                                     {item.image && (
@@ -2358,10 +2514,10 @@ export default function App() {
                                                         src={item.image} 
                                                         alt="Meal" 
                                                         className="w-5 h-5 object-cover rounded cursor-pointer border border-zinc-700 hover:border-indigo-400"
-                                                        onClick={() => setSelectedImage(item.image!)}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedImage(item.image!); }}
                                                       />
                                                     )}
-                                                    <label className="cursor-pointer text-zinc-500 hover:text-indigo-400 p-0.5">
+                                                    <label className="cursor-pointer text-zinc-500 hover:text-indigo-400 p-0.5" onClick={e => e.stopPropagation()}>
                                                       <Camera className="w-3.5 h-3.5" />
                                                       <input 
                                                         type="file" 
@@ -2371,58 +2527,56 @@ export default function App() {
                                                       />
                                                     </label>
                                                   </div>
-                                                  <span className="text-[10px] text-zinc-400 font-bold">
-                                                    複合包共 {item.items.length} 項目 · {groupKcal} kcal
-                                                  </span>
+                                                  <div className="flex items-center gap-2 ml-5">
+                                                    <span className="text-[10px] text-zinc-400 font-bold">
+                                                      餐點共 {item.items.length} 項目 · {groupKcal} kcal
+                                                    </span>
+                                                    {item.price !== undefined && item.price !== 0 && (
+                                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                        ${item.price}
+                                                      </span>
+                                                    )}
+                                                  </div>
                                                 </div>
                                               </div>
                                               {/* Subitems lists */}
-                                              <div className="pl-3 border-l-2 border-zinc-800 space-y-1.5 pt-1">
-                                                {item.items.map((sub, sIdx) => (
-                                                  <div key={sub.id} className="flex justify-between items-center text-[11px] text-zinc-400 hover:text-zinc-300">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                      <span>{sub.name} ({sub.amount ? `${sub.amount}g` : '份'})</span>
-                                                      {sub.image && (
-                                                        <img 
-                                                          src={sub.image} 
-                                                          alt="Meal" 
-                                                          className="w-4 h-4 object-cover rounded cursor-pointer border border-zinc-700 hover:border-indigo-400"
-                                                          onClick={() => setSelectedImage(sub.image!)}
-                                                        />
-                                                      )}
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                      <span className="font-mono text-[10px]">{sub.kcal} kcal · 蛋 {sub.protein}g</span>
-                                                      <label className="cursor-pointer text-zinc-500 hover:text-indigo-400 p-0.5">
-                                                        <Camera className="w-3 h-3" />
-                                                        <input 
-                                                          type="file" 
-                                                          accept="image/*" 
-                                                          className="hidden" 
-                                                          onChange={(e) => handleItemImageUpload(cat, idx, sIdx, e)}
-                                                        />
-                                                      </label>
-                                                      <button 
-                                                        onClick={() => openAdjustSubItemModal(cat, idx, sIdx)}
-                                                        className="text-zinc-400 hover:text-indigo-400 p-0.5 cursor-pointer"
-                                                        title="微調此項目"
-                                                      >
-                                                        <Edit2 className="w-3 h-3"/>
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                                <button 
-                                                  onClick={() => {
-                                                    setAddModalCategory(cat);
-                                                    setAddModalTargetGroupIndex(idx);
-                                                    setShowAddModal(true);
-                                                  }}
-                                                  className="text-[10px] text-indigo-400 font-bold mt-1.5 hover:text-indigo-300 transition-colors flex items-center gap-1"
-                                                >
-                                                  <Plus className="w-3 h-3" /> 新增子項目
-                                                </button>
-                                              </div>
+                                              {!collapsedGroupItems[`${cat}-${idx}`] && (
+                                                <div className="pl-3 border-l-2 border-zinc-800 space-y-1.5 pt-1 animate-in fade-in duration-200">
+                                                  {item.items.map((sub, sIdx) => (
+                                                    <SwipeToDelete 
+                                                      key={sub.id} 
+                                                      onDelete={() => deleteMealSubItem(cat, idx, sIdx)}
+                                                      onEdit={() => openAdjustSubItemModal(cat, idx, sIdx)}
+                                                      bgClass="bg-zinc-900"
+                                                      roundedClass="rounded-md"
+                                                    >
+                                                      <div className="flex justify-between items-center py-1.5 px-2 text-[11px] text-zinc-400 hover:text-zinc-300">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                          <span>{sub.name} ({sub.amount ? `${sub.amount}g` : '份'})</span>
+                                                          {sub.price !== undefined && (
+                                                            <span className="inline-flex items-center px-1 rounded bg-emerald-500/10 text-emerald-400 text-[8px] font-mono select-none border border-emerald-500/20">
+                                                              ${sub.price}
+                                                            </span>
+                                                          )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                          <span className="font-mono text-[10px]">{sub.kcal} kcal · 蛋 {sub.protein}g</span>
+                                                        </div>
+                                                      </div>
+                                                    </SwipeToDelete>
+                                                  ))}
+                                                  <button 
+                                                    onClick={() => {
+                                                      setAddModalCategory(cat);
+                                                      setAddModalTargetGroupIndex(idx);
+                                                      setShowAddModal(true);
+                                                    }}
+                                                    className="text-[10px] text-indigo-400 font-bold mt-1.5 hover:text-indigo-300 transition-colors flex items-center gap-1"
+                                                  >
+                                                    <Plus className="w-3 h-3" /> 新增子項目
+                                                  </button>
+                                                </div>
+                                              )}
                                             </div>
                                           </SwipeToDelete>
                                         );
@@ -2443,6 +2597,11 @@ export default function App() {
                                                 {singleItem.time && (
                                                   <span className="inline-flex items-center px-1 py-0.5 rounded-md bg-zinc-800 text-zinc-400 text-[8px] font-mono select-none border border-zinc-700/30 animate-fade-in">
                                                      {singleItem.time}
+                                                  </span>
+                                                )}
+                                                {singleItem.price !== undefined && (
+                                                  <span className="inline-flex items-center px-1 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[8px] font-mono select-none border border-emerald-500/20 animate-fade-in">
+                                                    ${singleItem.price}
                                                   </span>
                                                 )}
                                                 {singleItem.image && (
@@ -2503,11 +2662,24 @@ export default function App() {
                         </div>
 
                         {/* Circular ripple animation layer */}
-                        {waterRipple && (
-                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0">
-                            <div className="w-24 h-24 rounded-full border-2 border-sky-400/40 bg-sky-500/5 animate-ripple"/>
-                          </div>
-                        )}
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0">
+                          {waterRipple && (
+                            <motion.div 
+                              className="w-24 h-24 rounded-full border border-sky-400/80 bg-sky-500/20"
+                              initial={{ scale: 0.5, opacity: 1 }}
+                              animate={{ scale: 2, opacity: 0 }}
+                              transition={{ duration: 0.6, ease: "easeOut" }}
+                            />
+                          )}
+                          {waterTotalLogged >= (settings.waterTarget || 2000) && (
+                            <motion.div 
+                              className="w-full h-full absolute rounded-full border-2 border-sky-400/20"
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: [0.8, 1.1, 1.2], opacity: [0, 0.5, 0] }}
+                              transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                            />
+                          )}
+                        </div>
 
                         <div className="relative z-10 flex justify-between items-center">
                           <div className="flex items-center gap-2">
@@ -2530,10 +2702,11 @@ export default function App() {
                           {Array.from(new Set([150, 250, 350, settings.customWaterCup || 500])).sort((a, b) => a - b).map((ml) => {
                             const isCustom = ml === settings.customWaterCup;
                             return (
-                              <button
+                              <motion.button
+                                whileTap={{ scale: 0.9 }}
                                 key={ml}
                                 onClick={() => quickWaterAdd(ml)}
-                                className={`relative bg-black/50 border text-xs font-bold py-2.5 rounded-xl transition-all cursor-pointer ${
+                                className={`relative bg-black/50 border text-xs font-bold py-2.5 rounded-xl transition-all cursor-pointer overflow-hidden ${
                                   isCustom 
                                     ? "border-sky-500/50 bg-sky-950/20 text-sky-300 hover:bg-sky-500/20"
                                     : "border-zinc-800 hover:border-sky-500/30 text-sky-400 hover:bg-sky-500/10"
@@ -2545,7 +2718,7 @@ export default function App() {
                                   </span>
                                 )}
                                 +{ml} ml
-                              </button>
+                              </motion.button>
                             );
                           })}
                         </div>
@@ -2908,8 +3081,8 @@ export default function App() {
                   </div>
 
                   {/* Header Search & Direct adding manual trigger */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                    <div className="md:col-span-7 relative">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+                    <div className="lg:col-span-7 relative">
                       <input 
                         type="text"
                         placeholder="搜尋我的食物庫中的食物..."
@@ -2919,7 +3092,7 @@ export default function App() {
                       />
                     </div>
                     
-                    <div className="md:col-span-5 flex gap-2">
+                    <div className="lg:col-span-5 flex gap-2">
                       {/* Sort selection */}
                       <select
                         value={librarySortBy}
@@ -3653,7 +3826,7 @@ export default function App() {
       </div>
 
       {/* ─── Bottom Navigation bar on Mobile ─── */}
-      <nav className="lg:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-zinc-950/90 border-t border-zinc-800/80 backdrop-blur-2xl z-40 flex items-center justify-between p-1.5 pb-[calc(env(safe-area-inset-bottom)+6px)] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+      <nav className="md:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-zinc-950/90 border-t border-zinc-800/80 backdrop-blur-2xl z-40 flex items-center justify-between p-1.5 pb-[calc(env(safe-area-inset-bottom)+6px)] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <button
           onClick={() => setActiveTab("today")}
           className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
@@ -3704,52 +3877,52 @@ export default function App() {
 
       {/* ────────────────── MODAL: ADD FOOD ────────────────── */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end lg:justify-center lg:items-center">
-          <div className="bg-zinc-900 border-t lg:border border-zinc-800 rounded-t-3xl lg:rounded-3xl w-full max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-            <div className="flex justify-between items-center p-4 border-b border-zinc-850">
-              <h3 className="text-sm font-black text-zinc-100">
-                {addModalTargetGroupIndex !== undefined ? `新增子項目至 ${addModalCategory}` : `新增食物至 ${addModalCategory}`}
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end items-center md:justify-center">
+          <div className="bg-zinc-950 border-t md:border border-zinc-800 rounded-t-3xl md:rounded-3xl w-full max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 shadow-2xl">
+            <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-850/60 bg-zinc-900/20">
+              <h3 className="text-[15px] font-black text-zinc-100 tracking-wide">
+                {addModalTargetGroupIndex !== undefined ? `新增項目至 ${addModalCategory}` : `新增食物至 ${addModalCategory}`}
               </h3>
               <button 
                 onClick={() => {
                   setShowAddModal(false);
                   setAddModalTargetGroupIndex(undefined);
                 }}
-                className="text-zinc-400 hover:text-zinc-300 bg-black/50 p-1.5 rounded-lg border border-zinc-850"
+                className="text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 p-2 rounded-full transition-colors"
               >
                 <X className="w-4 h-4"/>
               </button>
             </div>
 
             {/* Modal Tabs */}
-            <div className="flex border-b border-zinc-850 p-2 gap-1.5 bg-black/50/40">
+            <div className="flex border-b border-zinc-850/60 px-4 py-3 gap-2 bg-zinc-900/30">
               <button
                 onClick={() => setAddModalTab("quick")}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  addModalTab === "quick"? "bg-zinc-900 text-indigo-400 shadow-sm border border-zinc-800": "text-zinc-400 hover:text-zinc-300"
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  addModalTab === "quick"? "bg-zinc-800 text-indigo-400 shadow-sm border border-zinc-700/50": "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/30"
                 }`}
               >
                 選取食物庫
               </button>
               <button
                 onClick={() => setAddModalTab("manual")}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  addModalTab === "manual"? "bg-zinc-900 text-indigo-400 shadow-sm border border-zinc-800": "text-zinc-400 hover:text-zinc-300"
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  addModalTab === "manual"? "bg-zinc-800 text-indigo-400 shadow-sm border border-zinc-700/50": "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/30"
                 }`}
               >
                 手動填寫
               </button>
               <button
                 onClick={() => setAddModalTab("ai")}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  addModalTab === "ai"? "bg-zinc-900 text-indigo-400 shadow-sm border border-zinc-800": "text-zinc-400 hover:text-zinc-300"
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  addModalTab === "ai"? "bg-zinc-800 text-indigo-400 shadow-sm border border-zinc-700/50": "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/30"
                 }`}
               >
                 AI 影像辨識
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
               
               {/* TAB 3: AI FOOD ANALYZER */}
               {addModalTab === "ai"&& (
@@ -3815,32 +3988,32 @@ export default function App() {
 
               {/* TAB 2: MANUAL DATA FILL FORM */}
               {addModalTab === "manual"&& (
-                <form onSubmit={handleManualAddSubmit} className="space-y-3.5 text-xs">
+                <form onSubmit={handleManualAddSubmit} className="space-y-5 text-xs">
                   
-                  <div className="flex items-center gap-2">
-                    <span className="w-16 text-zinc-400 font-bold">食物名稱*</span>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">食物名稱*</span>
                     <input 
                       type="text"
                       required
                       placeholder="例如：茶葉蛋 / 滷肉飯"
-                      className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 font-semibold"
+                      className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 font-semibold placeholder-zinc-600"
                       value={mName}
                       onChange={(e) => setMName(e.target.value)}
                     />
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="w-16 text-zinc-400 font-bold">食物分類</span>
-                    <div className="flex gap-1.5 flex-wrap flex-1">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">食物分類</span>
+                    <div className="flex gap-1.5 flex-wrap">
                       {["澱粉", "蛋白質", "蔬菜", "飲料", "點心", "其他"].map((cat) => (
                         <button
                           key={cat}
                           type="button"
                           onClick={() => setMCategory(cat)}
-                          className={`text-[10px] font-bold py-1 px-2.5 rounded-lg border transition-all cursor-pointer ${
+                          className={`text-[10px] font-bold py-1.5 px-3 rounded-lg border transition-all cursor-pointer ${
                             mCategory === cat
-                              ? "bg-indigo-600/20 border-indigo-500 text-indigo-400 font-black shadow-sm"
-                              : "bg-black/50 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                              ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 font-black shadow-sm"
+                              : "bg-zinc-900/30 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                           }`}
                         >
                           {cat}
@@ -3850,53 +4023,64 @@ export default function App() {
                   </div>
                   
                   {addModalTargetGroupIndex === undefined && (
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 text-zinc-400 font-bold">打包群組</span>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">餐點名稱 (選填)</span>
                       <input 
                         type="text"
-                        placeholder="例：午餐便當套餐 (選填)"
-                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200"
+                        placeholder="例：午餐便當、超商套餐"
+                        className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 placeholder-zinc-600"
                         value={mGroup}
                         onChange={(e) => setMGroup(e.target.value)}
                       />
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 text-zinc-400 font-bold">估計份量</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">估計份量 (g)</span>
                       <input 
                         type="number"
                         placeholder="選填克數"
-                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right"
+                        className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right placeholder-zinc-600"
                         value={mAmount}
                         onChange={(e) => setMAmount(e.target.value === ""? "": Number(e.target.value))}
                       />
-                      <span className="text-zinc-600 font-bold w-4">g</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 text-zinc-400 font-bold">數量</span>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">金額 (TWD)</span>
                       <input 
                         type="number"
-                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right"
+                        placeholder="價格"
+                        className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right placeholder-zinc-600"
+                        value={mPrice}
+                        onChange={(e) => setMPrice(e.target.value === ""? "": Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">數量 (份)</span>
+                      <input 
+                        type="number"
+                        className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
                         value={mCount}
                         onChange={(e) => setMCount(Number(e.target.value) || 1)}
                         min="0.1"
                         step="0.1"
                       />
-                      <span className="text-zinc-600 font-bold w-4">份</span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 border-t border-zinc-850 pt-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 text-zinc-400 font-bold">熱量*</span>
-                      <div className="flex-1 flex gap-1 items-center">
+                  <div className="grid grid-cols-2 gap-4 border-t border-zinc-850/60 pt-5">
+                    <div className="flex flex-col gap-2 relative">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><Flame className="w-3 h-3 text-red-400" />熱量* (大卡)</span>
+                      <div className="flex w-full gap-1.5 items-center">
                         <input 
                           type="number"
                           required
-                          className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right font-semibold"
+                          className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 w-full text-zinc-200 text-right font-semibold"
                           value={mKcal}
                           onChange={(e) => setMKcal(e.target.value === ""? "": Number(e.target.value))}
                         />
@@ -3911,23 +4095,24 @@ export default function App() {
                             if (theoretical > 0) setMKcal(theoretical);
                           }}
                           title="根據三大營養素計算理論熱量 (P*4 + C*4 + F*9)"
-                          className="text-[10px] font-black border border-zinc-800 hover:border-zinc-700 bg-black/40 text-indigo-400 px-2 py-2 rounded-lg cursor-pointer hover:bg-zinc-850 whitespace-nowrap shrink-0 transition-colors"
+                          className="text-[10px] font-black border border-zinc-700 hover:border-zinc-600 bg-zinc-800 text-indigo-400 px-2.5 py-2.5 rounded-xl cursor-pointer hover:bg-zinc-700 whitespace-nowrap shrink-0 transition-colors shadow-sm"
                         >
                            估算
                         </button>
                       </div>
-                      <span className="text-zinc-600 font-bold w-4">大卡</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 text-zinc-400 font-bold">蛋白質*</span>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><Dumbbell className="w-3 h-3 text-emerald-400" />蛋白質* (g)</span>
                       <input 
                         type="number"
-                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right"
+                        className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
                         value={mProtein}
                         onChange={(e) => setMProtein(e.target.value === ""? "": Number(e.target.value))}
+                        required
+                        min="0"
+                        step="0.1"
                       />
-                      <span className="text-zinc-600 font-bold w-4">克</span>
                     </div>
                   </div>
 
@@ -3940,12 +4125,12 @@ export default function App() {
                     const showMKcalDiffAlert = mKcal !== ""&& theoreticalMKcal > 0 && Math.abs(Number(mKcal) - theoreticalMKcal) > Math.max(20, theoreticalMKcal * 0.15);
                     if (!showMKcalDiffAlert) return null;
                     return (
-                      <div className="text-[10px] text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2.5 flex justify-between items-center animate-in fade-in">
+                      <div className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex justify-between items-center animate-in fade-in">
                         <span> 熱量與三大營養素估算理論值 ({theoreticalMKcal} 大卡) 有落差</span>
                         <button
                           type="button"
                           onClick={() => setMKcal(theoreticalMKcal)}
-                          className="text-indigo-400 hover:text-indigo-300 font-extrabold cursor-pointer hover:underline"
+                          className="text-amber-300 hover:text-amber-200 font-extrabold cursor-pointer hover:underline"
                         >
                           一鍵校正
                         </button>
@@ -3953,47 +4138,51 @@ export default function App() {
                     );
                   })()}
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 text-zinc-400 font-bold">碳水</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><span className="text-orange-400 text-[10px]">●</span>碳水* (g)</span>
                       <input 
                         type="number"
-                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right"
+                        className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
                         value={mCarb}
                         onChange={(e) => setMCarb(e.target.value === ""? "": Number(e.target.value))}
+                        required
+                        min="0"
+                        step="0.1"
                       />
-                      <span className="text-zinc-600 font-bold w-4">克</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 text-zinc-400 font-bold">脂肪</span>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><span className="text-yellow-400 text-[10px]">●</span>脂肪* (g)</span>
                       <input 
                         type="number"
-                        className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right"
+                        className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
                         value={mFat}
                         onChange={(e) => setMFat(e.target.value === ""? "": Number(e.target.value))}
+                        required
+                        min="0"
+                        step="0.1"
                       />
-                      <span className="text-zinc-600 font-bold w-4">克</span>
                     </div>
                   </div>
 
                   {/* Advanced inputs expansion */}
                   <div 
                     onClick={() => setShowAdvancedForm(!showAdvancedForm)}
-                    className="text-zinc-400 hover:text-zinc-300 font-bold flex items-center gap-1 cursor-pointer select-none py-1"
+                    className="text-zinc-400 hover:text-zinc-300 font-bold flex items-center gap-1.5 cursor-pointer select-none py-1.5 mt-2"
                   >
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showAdvancedForm ? "rotate-180": ""}`} />
                     進階成分微調 (纖維、精緻糖、鈉離子)
                   </div>
 
                   {showAdvancedForm && (
-                    <div className="space-y-3 bg-black/50/60 p-3 rounded-xl border border-zinc-850 animate-in fade-in duration-200">
+                    <div className="space-y-3 bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/60 animate-in fade-in duration-200">
                       <div className="flex justify-between items-center">
                         <span className="text-zinc-400 font-bold">膳食纖維：</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <input 
                             type="number"
-                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            className="bg-zinc-900 border border-zinc-800/60 rounded-lg px-2 py-1.5 text-right w-[80px] focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-200"
                             value={mFiber}
                             onChange={(e) => setMFiber(e.target.value === ""? "": Number(e.target.value))}
                           />
@@ -4002,10 +4191,10 @@ export default function App() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-zinc-400 font-bold">精製糖：</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <input 
                             type="number"
-                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            className="bg-zinc-900 border border-zinc-800/60 rounded-lg px-2 py-1.5 text-right w-[80px] focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-200"
                             value={mSugar}
                             onChange={(e) => setMSugar(e.target.value === ""? "": Number(e.target.value))}
                           />
@@ -4014,10 +4203,10 @@ export default function App() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-zinc-400 font-bold">鈉離子：</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <input 
                             type="number"
-                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            className="bg-zinc-900 border border-zinc-800/60 rounded-lg px-2 py-1.5 text-right w-[80px] focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-200"
                             value={mSodium}
                             onChange={(e) => setMSodium(e.target.value === ""? "": Number(e.target.value))}
                           />
@@ -4027,11 +4216,11 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 select-none py-1">
+                  <div className="flex items-center gap-2 select-none py-2 border-t border-zinc-850/60">
                     <input 
                       type="checkbox"
                       id="mSaveToLibCheck"
-                      className="rounded bg-black/50 border-zinc-850 text-indigo-500 focus:ring-0 w-4 h-4 accent-indigo-500"
+                      className="rounded bg-black/50 border-zinc-850 text-indigo-500 focus:ring-0 w-4 h-4 accent-indigo-500 cursor-pointer"
                       checked={mSaveToLib}
                       onChange={(e) => setMSaveToLib(e.target.checked)}
                     />
@@ -4042,7 +4231,7 @@ export default function App() {
 
                   <button
                     type="submit"
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.2)] border border-indigo-500/50 hover:shadow-[0_0_25px_rgba(79,70,229,0.4)] text-white font-bold text-sm py-3 rounded-xl cursor-pointer shadow-lg mt-3 transition-colors"
+                    className="w-full bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.2)] border border-indigo-500/50 hover:shadow-[0_0_25px_rgba(79,70,229,0.4)] text-white font-bold text-sm py-3.5 rounded-xl cursor-pointer mt-4 transition-all"
                   >
                     確認新增品項
                   </button>
@@ -4056,8 +4245,8 @@ export default function App() {
 
       {/* ────────────────── MODAL: ADJUST MEAL ────────────────── */}
       {showAdjustModal && adjustContext && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col justify-end lg:justify-center lg:items-center">
-          <div className="bg-zinc-900 border-t lg:border border-zinc-800 rounded-t-3xl lg:rounded-3xl w-full max-w-[460px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col justify-end items-center md:justify-center">
+          <div className="bg-zinc-900 border-t md:border border-zinc-800 rounded-t-3xl md:rounded-3xl w-full max-w-[460px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
             <div className="flex justify-between items-center p-4 border-b border-zinc-850">
               <h3 className="text-sm font-black text-zinc-100">
                 重估比例 / 份量調整
@@ -4079,6 +4268,17 @@ export default function App() {
                   value={adjustContext.customName !== undefined ? adjustContext.customName : adjustContext.origItem.name}
                   onChange={(e) => setAdjustContext({ ...adjustContext, customName: e.target.value })}
                   placeholder="項目名稱"
+                />
+              </div>
+              
+              <div>
+                <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider block mb-1">金額 (TWD)</span>
+                <input 
+                  type="number"
+                  className="bg-black/50 border border-zinc-850 rounded-lg px-3 py-2 text-sm font-extrabold w-full focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-100"
+                  value={adjustContext.customPrice !== undefined ? adjustContext.customPrice : ""}
+                  onChange={(e) => setAdjustContext({ ...adjustContext, customPrice: e.target.value === "" ? "" : Number(e.target.value) })}
+                  placeholder="留空即無金額"
                 />
               </div>
 
@@ -4106,34 +4306,27 @@ export default function App() {
 
               {/* Adjust value fields based on Mode */}
               {adjustContext.adjustMode === "ratio"&& (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-6 gap-1.5">
-                    {[0.25, 0.5, 0.75, 1, 1.5, 2].map((r) => (
-                      <button
-                        key={r}
-                        onClick={() => applyAdjustmentRatio(r)}
-                        className={`py-2 rounded-lg text-xs font-extrabold text-center transition-all ${
-                          adjustContext.customRatio === r
-                            ? "bg-indigo-600 text-white"
-                            : "bg-black/50 text-zinc-400 border border-zinc-850 hover:border-zinc-800"
-                        }`}
-                      >
-                        {r}x
-                      </button>
-                    ))}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="text-zinc-400 font-bold">調整倍率滑桿：</span>
+                    <span className="text-indigo-400 font-black text-lg bg-indigo-500/10 px-2.5 py-0.5 rounded-lg border border-indigo-500/20">{adjustContext.customRatio}x</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <span className="text-zinc-400 font-bold">自訂調整倍率：</span>
-                    <input 
-                      type="number"
-                      className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-right font-bold w-[100px] focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-200"
-                      value={adjustContext.customRatio}
-                      onChange={(e) => {
-                        const val = Number(e.target.value) || 0;
-                        applyAdjustmentRatio(val);
-                      }}
-                      step="0.1"
-                    />
+                  <input
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                    value={adjustContext.customRatio}
+                    onChange={(e) => applyAdjustmentRatio(Number(e.target.value))}
+                  />
+                  <div className="flex justify-between text-[10px] text-zinc-500 font-bold px-1">
+                    <span>0x</span>
+                    <span>0.5x</span>
+                    <span>1.0x</span>
+                    <span>1.5x</span>
+                    <span>2.0x</span>
+                    <span>3.0x</span>
                   </div>
                 </div>
               )}
@@ -4260,46 +4453,46 @@ export default function App() {
 
       {/* ────────────────── MODAL: EDIT FOOD LIBRARY ITEM ────────────────── */}
       {showEditFoodModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end lg:justify-center lg:items-center">
-            <div className="bg-zinc-900 border-t lg:border border-zinc-800 rounded-t-3xl lg:rounded-3xl w-full max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-              <div className="flex justify-between items-center p-4 border-b border-zinc-850">
-                <h3 className="text-sm font-black text-zinc-100">編輯食物庫品項</h3>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end items-center md:justify-center">
+            <div className="bg-zinc-950 border-t md:border border-zinc-800 rounded-t-3xl md:rounded-3xl w-full max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 shadow-2xl">
+              <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-850/60 bg-zinc-900/20">
+                <h3 className="text-[15px] font-black text-zinc-100 tracking-wide">編輯食物庫品項</h3>
                 <button 
                   onClick={() => {
                     setShowEditFoodModal(false);
                     setEditFoodIndex(null);
                   }}
-                  className="text-zinc-400 hover:text-zinc-300 bg-black/50 p-1.5 rounded-lg border border-zinc-850 cursor-pointer"
+                  className="text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 p-2 rounded-full transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4"/>
                 </button>
               </div>
 
-              <form onSubmit={saveEditedFoodLibraryItem} className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-16 text-zinc-400 font-bold">食物名稱*</span>
+              <form onSubmit={saveEditedFoodLibraryItem} className="flex-1 overflow-y-auto px-6 py-5 space-y-6 text-xs">
+                <div className="flex flex-col gap-2">
+                  <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">食物名稱*</span>
                   <input 
                     type="text"
                     required
                     placeholder="例如：茶葉蛋"
-                    className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 font-semibold"
+                    className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 font-semibold placeholder-zinc-600"
                     value={eName}
                     onChange={(e) => setEName(e.target.value)}
                   />
                 </div>
 
-                <div className="flex items-center gap-2 mt-3">
-                  <span className="w-16 text-zinc-400 font-bold">食物分類</span>
-                  <div className="flex gap-1.5 flex-wrap flex-1">
+                <div className="flex flex-col gap-2 mt-3">
+                  <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">食物分類</span>
+                  <div className="flex gap-1.5 flex-wrap">
                     {["澱粉", "蛋白質", "蔬菜", "飲料", "點心", "其他"].map((cat) => (
                       <button
                         key={cat}
                         type="button"
                         onClick={() => setECategory(cat)}
-                        className={`text-[10px] font-bold py-1 px-2.5 rounded-lg border transition-all cursor-pointer ${
+                        className={`text-[10px] font-bold py-1.5 px-3 rounded-lg border transition-all cursor-pointer ${
                           eCategory === cat
-                            ? "bg-indigo-600/20 border-indigo-500 text-indigo-400 font-black shadow-sm"
-                            : "bg-black/50 border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                            ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 font-black shadow-sm"
+                            : "bg-zinc-900/30 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                         }`}
                       >
                         {cat}
@@ -4308,16 +4501,16 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 複合組合餐 (Group) 的精細化子項目編輯 */}
+                {/* 複合餐點 (Group) 的精細化子項目編輯 */}
                 {editFoodIndex !== null && "type"in db.foods[editFoodIndex] && db.foods[editFoodIndex].type === "group"&& (
                   <div className="space-y-3.5 border-t border-zinc-850 pt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-zinc-400 font-bold">群組內子項目 ({editedGroupItems.length})</span>
+                      <span className="text-zinc-400 font-bold">餐點內項目 ({editedGroupItems.length})</span>
                       <span className="text-[10px] text-zinc-500 font-bold">可調整預設克數或移除</span>
                     </div>
                     
                     {editedGroupItems.length === 0 ? (
-                      <div className="text-center text-zinc-500 py-4 italic">此群組目前無任何子項目</div>
+                      <div className="text-center text-zinc-500 py-4 italic">此餐點目前無任何項目</div>
                     ) : (
                       <div className="space-y-2.5 max-h-[30vh] overflow-y-auto pr-1">
                         {editedGroupItems.map((subItem, sIdx) => (
@@ -4413,26 +4606,38 @@ export default function App() {
 
                 {editFoodIndex !== null && !("type"in db.foods[editFoodIndex] && db.foods[editFoodIndex].type === "group") && (
                   <>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      <div className="flex items-center gap-2">
-                        <span className="w-16 text-zinc-400 font-bold">估計份量</span>
+                    <div className="grid grid-cols-2 gap-4 mt-3">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">估計份量 (g)</span>
                         <input 
                           type="number"
                           placeholder="選填克數"
-                          className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right"
+                          className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right placeholder-zinc-600"
                           value={eAmount}
                           onChange={(e) => setEAmount(e.target.value === ""? "": Number(e.target.value))}
                         />
-                        <span className="text-zinc-600 font-bold w-4">g</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="w-16 text-zinc-400 font-bold">熱量*</span>
-                        <div className="flex-1 flex gap-1 items-center">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider">金額 (TWD)</span>
+                        <input 
+                          type="number"
+                          placeholder="價格"
+                          className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right placeholder-zinc-600"
+                          value={ePrice}
+                          onChange={(e) => setEPrice(e.target.value === ""? "": Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 border-t border-zinc-850/60 pt-5 mt-2">
+                      <div className="flex flex-col gap-2 relative">
+                        <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><Flame className="w-3 h-3 text-red-400" />熱量* (大卡)</span>
+                        <div className="flex w-full gap-1.5 items-center">
                           <input 
                             type="number"
                             required
-                            className="bg-black/50 border border-zinc-850 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 text-zinc-200 text-right font-semibold"
+                            className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 w-full text-zinc-200 text-right font-semibold"
                             value={eKcal}
                             onChange={(e) => setEKcal(e.target.value === ""? "": Number(e.target.value))}
                           />
@@ -4442,87 +4647,85 @@ export default function App() {
                               if (theoreticalEKcal > 0) setEKcal(theoreticalEKcal);
                             }}
                             title="根據三大營養素計算理論熱量 (P*4 + C*4 + F*9)"
-                            className="text-[10px] font-black border border-zinc-800 hover:border-zinc-700 bg-black/40 text-indigo-400 px-2 py-2 rounded-lg cursor-pointer hover:bg-zinc-850 whitespace-nowrap shrink-0 transition-colors"
+                            className="text-[10px] font-black border border-zinc-700 hover:border-zinc-600 bg-zinc-800 text-indigo-400 px-2.5 py-2.5 rounded-xl cursor-pointer hover:bg-zinc-700 whitespace-nowrap shrink-0 transition-colors shadow-sm"
                           >
                              估算
                           </button>
                         </div>
-                        <span className="text-zinc-600 font-bold w-4">大卡</span>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><Dumbbell className="w-3 h-3 text-emerald-400" />蛋白質* (g)</span>
+                        <input 
+                          type="number"
+                          className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
+                          value={eProtein}
+                          onChange={(e) => setEProtein(e.target.value === ""? "": Number(e.target.value))}
+                          required
+                          min="0"
+                          step="0.1"
+                        />
                       </div>
                     </div>
 
                     {showEKcalDiffAlert && (
-                      <div className="text-[10px] text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2.5 flex justify-between items-center animate-in fade-in">
+                      <div className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex justify-between items-center animate-in fade-in">
                         <span> 設定熱量與三大營養素估算理論值 ({theoreticalEKcal} 大卡) 有落差</span>
                         <button
                           type="button"
                           onClick={() => setEKcal(theoreticalEKcal)}
-                          className="text-indigo-400 hover:text-indigo-300 font-extrabold cursor-pointer hover:underline"
+                          className="text-amber-300 hover:text-amber-200 font-extrabold cursor-pointer hover:underline"
                         >
                           一鍵校正
                         </button>
                       </div>
                     )}
 
-                  <div className="grid grid-cols-3 gap-3 border-t border-zinc-850 pt-3">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-zinc-400 font-bold">蛋白質*</span>
-                      <div className="flex items-center gap-1">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><span className="text-orange-400 text-[10px]">●</span>碳水* (g)</span>
                         <input 
                           type="number"
-                          required
-                          className="bg-black/50 border border-zinc-850 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
-                          value={eProtein}
-                          onChange={(e) => setEProtein(e.target.value === ""? "": Number(e.target.value))}
-                        />
-                        <span className="text-zinc-600 font-bold">g</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <span className="text-zinc-400 font-bold">碳水</span>
-                      <div className="flex items-center gap-1">
-                        <input 
-                          type="number"
-                          className="bg-black/50 border border-zinc-850 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
+                          className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
                           value={eCarb}
                           onChange={(e) => setECarb(e.target.value === ""? "": Number(e.target.value))}
+                          required
+                          min="0"
+                          step="0.1"
                         />
-                        <span className="text-zinc-600 font-bold">g</span>
                       </div>
-                    </div>
 
-                    <div className="flex flex-col gap-1">
-                      <span className="text-zinc-400 font-bold">脂肪</span>
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-zinc-500 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1"><span className="text-yellow-400 text-[10px]">●</span>脂肪* (g)</span>
                         <input 
                           type="number"
-                          className="bg-black/50 border border-zinc-850 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
+                          className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full text-zinc-200 text-right"
                           value={eFat}
                           onChange={(e) => setEFat(e.target.value === ""? "": Number(e.target.value))}
+                          required
+                          min="0"
+                          step="0.1"
                         />
-                        <span className="text-zinc-600 font-bold">g</span>
                       </div>
                     </div>
-                  </div>
 
                   {/* Advanced inputs expansion */}
                   <div 
                     onClick={() => setShowEditAdvanced(!showEditAdvanced)}
-                    className="text-zinc-400 hover:text-zinc-300 font-bold flex items-center gap-1 cursor-pointer select-none py-1"
+                    className="text-zinc-400 hover:text-zinc-300 font-bold flex items-center gap-1.5 cursor-pointer select-none py-1.5 mt-2"
                   >
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showEditAdvanced ? "rotate-180": ""}`} />
                     進階成分微調 (纖維、精緻糖、鈉離子)
                   </div>
 
                   {showEditAdvanced && (
-                    <div className="space-y-3 bg-black/50/60 p-3 rounded-xl border border-zinc-850 animate-in fade-in duration-200">
+                    <div className="space-y-3 bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/60 animate-in fade-in duration-200">
                       <div className="flex justify-between items-center">
                         <span className="text-zinc-400 font-bold">膳食纖維：</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <input 
                             type="number"
-                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            className="bg-zinc-900 border border-zinc-800/60 rounded-lg px-2 py-1.5 text-right w-[80px] focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-200"
                             value={eFiber}
                             onChange={(e) => setEFiber(e.target.value === ""? "": Number(e.target.value))}
                           />
@@ -4531,10 +4734,10 @@ export default function App() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-zinc-400 font-bold">精製糖：</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <input 
                             type="number"
-                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            className="bg-zinc-900 border border-zinc-800/60 rounded-lg px-2 py-1.5 text-right w-[80px] focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-200"
                             value={eSugar}
                             onChange={(e) => setESugar(e.target.value === ""? "": Number(e.target.value))}
                           />
@@ -4543,10 +4746,10 @@ export default function App() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-zinc-400 font-bold">鈉離子：</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <input 
                             type="number"
-                            className="bg-zinc-900 border border-zinc-850 rounded px-2 py-1 text-right w-[80px] focus:outline-none text-zinc-200"
+                            className="bg-zinc-900 border border-zinc-800/60 rounded-lg px-2 py-1.5 text-right w-[80px] focus:outline-none focus:ring-1 focus:ring-indigo-500 text-zinc-200"
                             value={eSodium}
                             onChange={(e) => setESodium(e.target.value === ""? "": Number(e.target.value))}
                           />
@@ -4558,20 +4761,20 @@ export default function App() {
                 </>
               )}
 
-              <div className="flex gap-2.5 pt-4 border-t border-zinc-850">
+              <div className="flex gap-3 pt-6 border-t border-zinc-850/60 mt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowEditFoodModal(false);
                     setEditFoodIndex(null);
                   }}
-                  className="flex-1 bg-black/50 hover:bg-zinc-850 text-zinc-400 border border-zinc-850 py-2.5 rounded-xl text-xs font-bold cursor-pointer"
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-3.5 rounded-xl text-xs font-bold cursor-pointer transition-colors"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold shadow cursor-pointer"
+                  className="flex-1 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white py-3.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-500/20 cursor-pointer transition-all border border-indigo-500/50"
                 >
                   儲存修改
                 </button>
@@ -4649,6 +4852,7 @@ export default function App() {
               sugar: loggedTotals.sugar,
               sodium: loggedTotals.sodium,
               water: waterTotalLogged,
+              price: loggedTotals.price,
             }}
             weightTrend={getRecentWeightTrend(db.days)}
           />

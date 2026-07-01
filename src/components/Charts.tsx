@@ -8,23 +8,26 @@ interface ChartsProps {
   goalWeight: number;
 }
 
+type ChartMetric = "kcal" | "protein" | "carb" | "fat";
+
 export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => {
-  const [hoveredCalorie, setHoveredCalorie] = useState<{ x: number; y: number; val: number; date: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<ChartMetric>("kcal");
+  const [hoveredMetric, setHoveredMetric] = useState<{ x: number; y: number; val: number; date: string } | null>(null);
   const [hoveredWeight, setHoveredWeight] = useState<{ x: number; y: number; val: number; date: string } | null>(null);
   const [hoveredBodyFat, setHoveredBodyFat] = useState<{ x: number; y: number; val: number; date: string } | null>(null);
 
-  // Helper to calculate total calories for a day
-  const getDayKcal = (dateStr: string): number => {
+  // Helper to calculate total metrics for a day
+  const getDayMetric = (dateStr: string, metric: ChartMetric): number => {
     const day = days[dateStr];
     if (!day) return 0;
     let sum = 0;
     (Object.values(day.meals) as MealRecord[][]).forEach((meal) => {
       meal.forEach((item) => {
         if ("type" in item && item.type === "group") {
-          item.items.forEach((sub) => (sum += sub.kcal || 0));
+          item.items.forEach((sub) => (sum += sub[metric] || 0));
         } else {
           const single = item as MealItem;
-          sum += single.kcal || 0;
+          sum += single[metric] || 0;
         }
       });
     });
@@ -32,53 +35,82 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
   };
 
   const periodCalorie = 14;
-  const calorieChartData = useMemo(() => {
-    const data: { date: string; kcal: number }[] = [];
+  const metricChartData = useMemo(() => {
+    const data: { date: string; val: number }[] = [];
     for (let i = periodCalorie - 1; i >= 0; i--) {
       const dStr = getDateString(-i);
       data.push({
         date: dStr,
-        kcal: getDayKcal(dStr),
+        val: getDayMetric(dStr, activeTab),
       });
     }
     return data;
-  }, [days, periodCalorie]);
+  }, [days, periodCalorie, activeTab]);
 
-  // 1. Calories Bar Chart (last 14 days)
-  const renderCalorieChart = () => {
-    const data = calorieChartData;
-    const maxKcal = Math.max(...data.map((d) => d.kcal), targets.kcal) * 1.15 || 2500;
+  // 1. Metric Bar Chart (last 14 days)
+  const renderMetricChart = () => {
+    const data = metricChartData;
+    const currentTarget = targets[activeTab] || 0;
+    const maxVal = Math.max(...data.map((d) => d.val), currentTarget) * 1.15 || (activeTab === "kcal" ? 2500 : 100);
     const chartHeight = 120;
-    const barWidthPct = 80 / periodCalorie;
+    
+    const metricConfig = {
+      kcal: { label: "熱量", unit: "大卡", color: "bg-indigo-500", hoverColor: "hover:bg-indigo-400", targetColor: "border-purple-500/60", textColor: "text-purple-400", overColor: "bg-rose-500/80 hover:bg-rose-500" },
+      protein: { label: "蛋白質", unit: "克", color: "bg-emerald-500", hoverColor: "hover:bg-emerald-400", targetColor: "border-emerald-500/60", textColor: "text-emerald-400", overColor: "bg-emerald-500/80 hover:bg-emerald-500" },
+      carb: { label: "碳水", unit: "克", color: "bg-orange-500", hoverColor: "hover:bg-orange-400", targetColor: "border-orange-500/60", textColor: "text-orange-400", overColor: "bg-rose-500/80 hover:bg-rose-500" },
+      fat: { label: "脂肪", unit: "克", color: "bg-amber-400", hoverColor: "hover:bg-amber-300", targetColor: "border-amber-400/60", textColor: "text-amber-400", overColor: "bg-rose-500/80 hover:bg-rose-500" }
+    };
+    
+    const config = metricConfig[activeTab];
 
     return (
       <div className="relative group h-full">
         <div className="absolute -inset-1 rounded-3xl opacity-[0.2] blur-xl bg-gradient-to-br from-indigo-500/20 via-white/10 to-transparent group-hover:opacity-[0.4] group-active:opacity-[0.5] group-active:scale-95 transition-all duration-500 pointer-events-none" />
         <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 h-full flex flex-col justify-between">
+          
           <div className="flex justify-between items-start flex-wrap gap-2 mb-4">
-            <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">每日熱量消耗與目標 (近 14 天)</h4>
-            <div className="flex items-center gap-1.5 text-[9px] text-purple-400 font-extrabold bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 uppercase tracking-widest shrink-0">
-              <span className="w-2.5 h-0 border-t border-dashed border-purple-400 inline-block" />
-              <span>目標 {targets.kcal} 大卡</span>
+            <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">營養消耗趨勢 (近 14 天)</h4>
+            
+            {/* Tabs */}
+            <div className="flex bg-black/50 rounded-lg p-0.5 border border-zinc-800/80">
+              {(["kcal", "protein", "carb", "fat"] as ChartMetric[]).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-2 py-1 text-[9px] font-bold rounded-md transition-colors ${
+                    activeTab === tab ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {metricConfig[tab].label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex justify-end mb-2">
+            <div className={`flex items-center gap-1.5 text-[9px] ${config.textColor} font-extrabold bg-zinc-900/50 px-1.5 py-0.5 rounded border border-zinc-800 uppercase tracking-widest shrink-0`}>
+              <span className={`w-2.5 h-0 border-t border-dashed ${config.targetColor} inline-block`} />
+              <span>目標 {Math.round(currentTarget)} {config.unit}</span>
             </div>
           </div>
         
         <div className="relative h-[130px] w-full flex items-end justify-between border-b border-zinc-800 pb-1">
           {/* Target Line */}
           <div 
-            className="absolute left-0 right-0 border-t border-dashed border-purple-500/60 z-0 flex items-center justify-end animate-pulse"
-            style={{ bottom: `${(targets.kcal / maxKcal) * 100}%` }}
+            className={`absolute left-0 right-0 border-t border-dashed ${config.targetColor} z-0 flex items-center justify-end animate-pulse`}
+            style={{ bottom: `${(currentTarget / maxVal) * 100}%` }}
           />
 
           {/* Bar elements */}
           {data.map((item, index) => {
-            const heightPct = (item.kcal / maxKcal) * 100;
-            const isOver = item.kcal > targets.kcal;
-            const barBg = item.kcal === 0 
+            const heightPct = (item.val / maxVal) * 100;
+            const isOver = item.val > currentTarget;
+            // For protein, going over target is often good, so we keep it green or slightly different. For others, going over might be red.
+            const barBg = item.val === 0 
               ? "bg-zinc-800" 
               : isOver 
-                ? "bg-rose-500/80 hover:bg-rose-500" 
-                : "bg-indigo-500/80 hover:bg-indigo-400";
+                ? config.overColor 
+                : `${config.color}/80 ${config.hoverColor}`;
 
             return (
               <div 
@@ -87,31 +119,31 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
                 style={{ height: "100%" }}
               >
                 <div className="relative w-full h-full flex items-end justify-center px-1">
-                  {item.kcal > 0 && (
+                  {item.val > 0 && (
                     <div
                       className={`w-[70%] rounded-t-sm transition-all duration-300 ${barBg} cursor-pointer`}
                       style={{ height: `${heightPct}%` }}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setHoveredCalorie({
+                        setHoveredMetric({
                           x: rect.left + rect.width / 2,
                           y: rect.top,
-                          val: Math.round(item.kcal),
+                          val: Math.round(item.val * 10) / 10,
                           date: formatFriendlyDate(item.date),
                         });
                       }}
-                      onMouseLeave={() => setHoveredCalorie(null)}
+                      onMouseLeave={() => setHoveredMetric(null)}
                       onTouchStart={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setHoveredCalorie({
+                        setHoveredMetric({
                           x: rect.left + rect.width / 2,
                           y: rect.top,
-                          val: Math.round(item.kcal),
+                          val: Math.round(item.val * 10) / 10,
                           date: formatFriendlyDate(item.date),
                         });
                       }}
                       onTouchEnd={() => {
-                        setTimeout(() => setHoveredCalorie(null), 2500);
+                        setTimeout(() => setHoveredMetric(null), 2500);
                       }}
                     />
                   )}
@@ -129,17 +161,17 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
         </div>
 
         {/* Hover Tooltip */}
-        {hoveredCalorie && (
+        {hoveredMetric && (
           <div 
             className="fixed bg-black/50 text-white text-xs py-1.5 px-3 rounded-lg border border-zinc-700 shadow-xl pointer-events-none z-50 transition-all duration-100"
             style={{ 
-              left: `${hoveredCalorie.x}px`, 
-              top: `${hoveredCalorie.y - 45}px`,
+              left: `${hoveredMetric.x}px`, 
+              top: `${hoveredMetric.y - 45}px`,
               transform: "translateX(-50%)"
             }}
           >
-            <div className="font-semibold text-center">{hoveredCalorie.val} kcal</div>
-            <div className="text-[10px] text-zinc-400 text-center">{hoveredCalorie.date}</div>
+            <div className="font-semibold text-center">{hoveredMetric.val} {config.unit}</div>
+            <div className="text-[10px] text-zinc-400 text-center">{hoveredMetric.date}</div>
           </div>
         )}
         </div>
@@ -457,7 +489,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {renderCalorieChart()}
+      {renderMetricChart()}
       {renderCombinedTrendChart()}
     </div>
   );

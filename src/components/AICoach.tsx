@@ -21,6 +21,7 @@ interface AICoachProps {
     sugar: number;
     sodium: number;
     water: number;
+    price: number;
   };
   weightTrend: number | null;
 }
@@ -128,20 +129,20 @@ export const AICoach: React.FC<AICoachProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end lg:p-4">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end md:p-4">
       <motion.div
         initial={{ x: "100%" }}
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 220 }}
-        className="w-full max-w-[500px] h-full bg-zinc-950 border-l border-zinc-850 flex flex-col shadow-2xl relative overflow-hidden lg:rounded-2xl lg:border"
+        className="w-full max-w-[500px] h-full bg-zinc-950 border-l border-zinc-850 flex flex-col shadow-2xl relative overflow-hidden md:rounded-2xl md:border"
       >
         {/* Glow accent */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/[0.03] rounded-full blur-[80px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/[0.03] rounded-full blur-[80px] pointer-events-none" />
 
         {/* Header */}
-        <div className="relative flex justify-between items-center px-4 pt-[calc(env(safe-area-inset-top)+14px)] lg:pt-3.5 pb-3.5 border-b border-zinc-850 bg-zinc-900/40 backdrop-blur-md">
+        <div className="relative flex justify-between items-center px-4 pt-[calc(env(safe-area-inset-top)+14px)] md:pt-3.5 pb-3.5 border-b border-zinc-850 bg-zinc-900/40 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20 text-indigo-400">
               <Sparkles className="w-4 h-4 animate-pulse" />
@@ -233,7 +234,7 @@ export const AICoach: React.FC<AICoachProps> = ({
         </div>
 
         {/* Suggestion Chips and Input Bar */}
-        <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] lg:pb-4 border-t border-zinc-850 bg-zinc-950">
+        <div className="p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] md:pb-4 border-t border-zinc-850 bg-zinc-950">
           {/* Quick chip options */}
           {messages.length <= 1 && !isLoading && (
             <div className="mb-3 space-y-1.5 max-h-[140px] overflow-y-auto pr-1">

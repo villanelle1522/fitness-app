@@ -58,14 +58,16 @@ app.post("/api/analyze-meal", async (req, res): Promise<any> => {
 
     let memoryContext = "";
     if (Array.isArray(customFoods) && customFoods.length > 0) {
-      const memoryList = customFoods.map((f: any) => `- ${f.name}: ${f.kcal} kcal, 蛋白質 ${f.protein}g, 碳水 ${f.carb}g, 脂肪 ${f.fat}g`).join('\n');
-      memoryContext = `\n\n【使用者個人專屬記憶庫】\n以下是使用者常吃的個人食物清單及其營養素。如果您在圖片或文字中辨識出類似的餐點，請**優先套用**這些專屬記憶數據，而非一般通用數據：\n${memoryList}`;
+      const memoryList = customFoods.map((f) => `- ${f.name}: ${f.kcal} kcal, 蛋白質 ${f.protein}g, 碳水 ${f.carb}g, 脂肪 ${f.fat}g`).join('\n');
+      memoryContext = `\n\n【使用者個人專屬記憶庫】\n以下是使用者常吃的個人食物清單：\n${memoryList}`;
     }
 
     const systemInstruction = `You are a professional dietitian and food analysis expert. 
 Analyze the provided text description or image of a meal/food, estimate the ingredients and their nutritional values accurately.
-Always translate the output food names into Traditional Chinese (zh-TW) as used in Taiwan (e.g. 滷肉飯, 味噌湯).
-Calculate:
+Always translate the output food names and the overall meal name into Traditional Chinese (zh-TW) as used in Taiwan (e.g. 滷肉飯, 味噌湯).
+Provide a descriptive name for the overall meal in "mealName" (e.g., '舒肥雞胸糙米餐盒', '雙層牛肉堡大薯套餐', '起司蛋吐司配拿鐵').
+For each item in the "items" array, calculate:
+- name (Traditional Chinese character only)
 - kcal (calories in kcal)
 - protein (in grams)
 - carb (carbohydrates in grams)
@@ -74,9 +76,10 @@ Calculate:
 - sugar (sugar in grams)
 - sodium (sodium in milligrams)
 - amount (estimated weight in grams, or null/0 if not clearly estimable)
+- price (estimated price in TWD if it's a known food or from a receipt/menu, or parsed from the user prompt. Optional)
 
 Ensure all values are realistic based on standard food databases.${memoryContext}
-Provide the response strictly as a JSON array matching the requested schema.`;
+Provide the response strictly as a JSON object matching the requested schema containing "mealName" and "items".`;
 
     const contents: any[] = [];
     if (image) {
@@ -100,50 +103,65 @@ Provide the response strictly as a JSON array matching the requested schema.`;
         systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.ARRAY,
-          description: "List of analyzed food items in this meal",
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              name: {
-                type: Type.STRING,
-                description: "Name of the food item in Traditional Chinese (Traditional Chinese characters only)",
-              },
-              amount: {
-                type: Type.NUMBER,
-                description: "Estimated weight in grams (g)",
-              },
-              kcal: {
-                type: Type.NUMBER,
-                description: "Calories (kcal)",
-              },
-              protein: {
-                type: Type.NUMBER,
-                description: "Protein (g)",
-              },
-              carb: {
-                type: Type.NUMBER,
-                description: "Carbohydrates (g)",
-              },
-              fat: {
-                type: Type.NUMBER,
-                description: "Fat (g)",
-              },
-              fiber: {
-                type: Type.NUMBER,
-                description: "Dietary Fiber (g)",
-              },
-              sugar: {
-                type: Type.NUMBER,
-                description: "Sugar (g)",
-              },
-              sodium: {
-                type: Type.NUMBER,
-                description: "Sodium (mg)",
+          type: Type.OBJECT,
+          description: "Analysis result of the meal",
+          properties: {
+            mealName: {
+              type: Type.STRING,
+              description: "A short, descriptive, professional name of the overall meal/combination in Traditional Chinese (Taiwan syntax). Max 15 chars.",
+            },
+            items: {
+              type: Type.ARRAY,
+              description: "List of analyzed food items in this meal",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: {
+                    type: Type.STRING,
+                    description: "Name of the food item in Traditional Chinese (Traditional Chinese characters only)",
+                  },
+                  amount: {
+                    type: Type.NUMBER,
+                    description: "Estimated weight in grams (g)",
+                  },
+                  price: {
+                    type: Type.NUMBER,
+                    description: "Estimated or parsed price in TWD",
+                  },
+                  kcal: {
+                    type: Type.NUMBER,
+                    description: "Calories (kcal)",
+                  },
+                  protein: {
+                    type: Type.NUMBER,
+                    description: "Protein (g)",
+                  },
+                  carb: {
+                    type: Type.NUMBER,
+                    description: "Carbohydrates (g)",
+                  },
+                  fat: {
+                    type: Type.NUMBER,
+                    description: "Fat (g)",
+                  },
+                  fiber: {
+                    type: Type.NUMBER,
+                    description: "Dietary Fiber (g)",
+                  },
+                  sugar: {
+                    type: Type.NUMBER,
+                    description: "Sugar (g)",
+                  },
+                  sodium: {
+                    type: Type.NUMBER,
+                    description: "Sodium (mg)",
+                  },
+                },
+                required: ["name", "kcal", "protein", "carb", "fat", "fiber", "sugar", "sodium"],
               },
             },
-            required: ["name", "kcal", "protein", "carb", "fat", "fiber", "sugar", "sodium"],
           },
+          required: ["mealName", "items"],
         },
       },
     });
@@ -193,12 +211,13 @@ app.post("/api/coach-chat", async (req, res): Promise<any> => {
 
     const profile = settings || {};
     const targets = profile.targets || {};
-    const stats = todayStats || { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0, water: 0 };
+    const stats = todayStats || { kcal: 0, protein: 0, carb: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0, water: 0, price: 0 };
 
     const systemInstruction = `You are a professional, highly encouraging fitness trainer, dietician, and health coach named 「FitAI 智慧教練」.
 Your job is to provide specific, professional, and personalized health, diet, recipe, and exercise advice based on the user's active logs.
 Always reply in Traditional Chinese (zh-TW) with professional terminology used in Taiwan.
 Be concise but incredibly helpful and motivating. Offer concrete food options (e.g. 雞胸肉, 無糖豆漿, 地瓜, 水煮蛋) and suggest realistic plans.
+CRITICAL RULE: DO NOT use too many emojis. Keep it extremely professional. Remember your role as an expert. Do not yap, give direct and high-value answers.
 
 Here is the user's active profile and logs context:
 - User Profile: ${profile.sex || "未設定"}, ${profile.age || "未設定"}歲, ${profile.height || "未設定"}cm, 目前體重: ${profile.weight || "未設定"}kg
@@ -220,9 +239,10 @@ Here is the user's active profile and logs context:
   - Sugar: ${stats.sugar || 0} g / ${targets.sugar || 0} g
   - Sodium: ${stats.sodium || 0} mg / ${targets.sodium || 2300} mg
   - Water Logged: ${stats.water || 0} ml (Target: ${profile.waterTarget || 2000} ml)
+  - Total Money Spent Today on Food: $${stats.price || 0} TWD
 - Recent Weight Trend: ${weightTrend ? `${weightTrend} kg/week` : "暫無足夠趨勢數據"}
 
-Review these metrics and give professional, smart feedback when the user asks. If they ask for dinner recommendations, count how much protein/carb/kcal they have left for today and design a perfect meal! Always reference their current goals (e.g. 減脂/增肌).`;
+Review these metrics and give professional, smart feedback when the user asks. If they ask for dinner recommendations, count how much protein/carb/kcal they have left for today and design a perfect meal! If they ask about food costs or budgeting, take the "Total Money Spent Today" into account and offer budgeting advice. Always reference their current goals (e.g. 減脂/增肌).`;
 
     const contents = messages.map((m: any) => ({
       role: m.role === "assistant" ? "model" : "user",
