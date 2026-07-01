@@ -7,9 +7,10 @@ interface HistoryCalendarProps {
   currentDate: string;
   onSelectDate: (dateStr: string) => void;
   daysData: Record<string, any>; // Pass db.days
+  targets: any; // Pass NutritionTargets
 }
 
-export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, onSelectDate, daysData }) => {
+export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, onSelectDate, daysData, targets }) => {
   const initialDate = new Date(currentDate);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
 
@@ -70,32 +71,77 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, o
             const isSelected = dateStr === currentDate;
             const isToday = dateStr === formatTargetDate(new Date());
             const dayData = daysData[dateStr];
-            const hasData = dayData ? (
-              Object.values(dayData.meals || {}).some((list: any) => list.length > 0) || 
-              (dayData.water > 0) || 
-              (dayData.weight > 0)
-            ) : false;
             
+            let dailyKcal = 0;
+            let dailyProtein = 0;
+            let hasMeals = false;
+            
+            if (dayData && dayData.meals) {
+              Object.values(dayData.meals).forEach((meal: any) => {
+                if (meal.length > 0) hasMeals = true;
+                meal.forEach((item: any) => {
+                  if (item.type === "group") {
+                    item.items.forEach((sub: any) => {
+                      dailyKcal += sub.kcal || 0;
+                      dailyProtein += sub.protein || 0;
+                    });
+                  } else {
+                    dailyKcal += item.kcal || 0;
+                    dailyProtein += item.protein || 0;
+                  }
+                });
+              });
+            }
+
+            const hasData = hasMeals || (dayData?.water > 0) || (dayData?.weight > 0);
+            const isOverKcal = dailyKcal > (targets?.kcal || 2000);
+            const isTargetMet = hasMeals && !isOverKcal && (dailyProtein >= ((targets?.protein || 50) * 0.9)); // Allow 10% margin for perfect
+
+            let heatColorClass = "hover:bg-white/10 text-zinc-500 bg-white/[0.02]"; // 忘記紀錄 (Gray)
+            
+            if (hasMeals) {
+              if (isOverKcal) {
+                heatColorClass = "bg-rose-500/20 text-rose-300 border border-rose-500/20 hover:bg-rose-500/30"; // 熱量爆表
+              } else if (isTargetMet) {
+                heatColorClass = "bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/40"; // 完美達標
+              } else {
+                heatColorClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/10 hover:bg-emerald-500/20"; // 有紀錄但未達完美
+              }
+            } else if (hasData) {
+              heatColorClass = "bg-white/5 text-zinc-400 hover:bg-white/10"; // 只有水量體重
+            }
+
             return (
               <button
                 key={dateStr}
                 onClick={() => onSelectDate(dateStr)}
                 className={`
                   relative h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-200
-                  ${isSelected ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-white/10 text-zinc-300'}
+                  ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-zinc-950 z-10' : ''}
                   ${isToday && !isSelected ? 'border border-indigo-500/50 text-indigo-400' : ''}
+                  ${heatColorClass}
                 `}
               >
                 {date.getDate()}
-                {hasData && !isSelected && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-emerald-400" />
-                )}
-                {hasData && isSelected && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-white" />
-                )}
               </button>
             );
           })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-3 mt-4 pt-2 border-t border-zinc-800/50 text-[10px] text-zinc-500 font-bold justify-center flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-emerald-500/30 border border-emerald-500/30"></div>
+            <span>完美達標</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-emerald-500/10 border border-emerald-500/10"></div>
+            <span>有紀錄</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-rose-500/20 border border-rose-500/20"></div>
+            <span>熱量爆表</span>
+          </div>
         </div>
       </div>
     </div>

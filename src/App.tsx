@@ -2884,6 +2884,7 @@ export default function App() {
                   <HistoryCalendar 
                     currentDate={currentDate} 
                     daysData={db.days} 
+                    targets={targets}
                     onSelectDate={(dateStr) => {
                       setCurrentDate(dateStr);
                     }} 
