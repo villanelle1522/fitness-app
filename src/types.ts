@@ -51,6 +51,7 @@ export interface DayRecord {
   weight: number | null;
   bodyfat: number | null;
   photos?: { id: string; url: string; timestamp: number }[];
+  fastingHours?: number; // 記錄當天完成的斷食時長
 }
 
 export interface NutritionTargets {
@@ -78,12 +79,20 @@ export interface Settings {
   customWaterCup?: number;
   geminiApiKey?: string;
   autoWaterTarget?: boolean;
+  requireFastingForPerfectDay?: boolean;
+}
+
+export interface FastingState {
+  isFasting: boolean;
+  startTime: number | null; // timestamp in ms
+  targetHours: number; // default 16
 }
 
 export interface DBState {
   settings: Settings;
   days: Record<string, DayRecord>;
   foods: MealRecord[];
+  fasting?: FastingState;
 }
 
 export const DEFAULT_TARGETS: NutritionTargets = {

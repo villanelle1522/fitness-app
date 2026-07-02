@@ -16,6 +16,7 @@ import { ShareCardModal } from "./components/ShareCardModal";
 import { WeeklyReport } from "./components/WeeklyReport";
 import { SwipeToDelete } from "./components/SwipeToDelete";
 import { AICoach } from "./components/AICoach";
+import { FastingTracker } from "./components/FastingTracker";
 import localforage from "localforage";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -97,6 +98,7 @@ export default function App() {
     settings: { ...DEFAULT_SETTINGS },
     days: {},
     foods: [],
+    fasting: { isFasting: false, startTime: null, targetHours: 16 },
   });
   const [activeTab, setActiveTab] = useState<"today"| "history"| "foods"| "settings">("today");
 
@@ -188,6 +190,7 @@ export default function App() {
   
   // ─── Modal & Form States ───
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBeforeAfterModal, setShowBeforeAfterModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [addModalCategory, setAddModalCategory] = useState("早餐");
   const [addModalTargetGroupIndex, setAddModalTargetGroupIndex] = useState<number | undefined>(undefined);
@@ -395,6 +398,7 @@ export default function App() {
         settings: { ...DEFAULT_SETTINGS },
         days: {},
         foods: [],
+        fasting: { isFasting: false, startTime: null, targetHours: 16 },
       };
 
       try {
@@ -1315,8 +1319,8 @@ export default function App() {
     // 4. 蛋白質達人 (Protein Pro) - 今日蛋白質達標
     const isProteinPro = loggedTotals.protein >= targets.protein && loggedTotals.protein > 0;
 
-    // 5. 高纖大師 (Fiber Pro) - 今日膳食纖維達標 (預設 25g)
-    const isFiberPro = loggedTotals.fiber >= (targets.fiber || 25) && loggedTotals.fiber > 0;
+    // 5. 斷食自噬者 (Fasting Pro) - 今日斷食達標 (至少 16 小時)
+    const isFastingPro = (getDayRecord(currentDate).fastingHours || 0) >= 16 || (db.fasting?.isFasting && ((Date.now() - (db.fasting.startTime || Date.now())) / 3600000 >= 16));
 
     return [
       {
@@ -1372,17 +1376,17 @@ export default function App() {
         hexColor: "rgba(16, 185, 129, 0.5)",
       },
       {
-        id: "fiber_pro",
-        name: "高纖大師",
-        desc: "今日膳食纖維攝取量達標",
-        icon: <Salad className="w-5 h-5"strokeWidth={1.5} />,
-        unlocked: isFiberPro,
-        progress: isFiberPro ? "已達成": "未達成",
-        color: "text-lime-400",
-        bg: "bg-lime-500/10",
-        border: "border-lime-500/20",
-        glowBg: "bg-lime-500",
-        hexColor: "rgba(132, 204, 22, 0.5)",
+        id: "fasting_pro",
+        name: "斷食自噬者",
+        desc: "今日斷食時間達 16 小時以上",
+        icon: <Sparkles className="w-5 h-5"strokeWidth={1.5} />,
+        unlocked: isFastingPro,
+        progress: isFastingPro ? "已達成": "未達成",
+        color: "text-rose-400",
+        bg: "bg-rose-500/10",
+        border: "border-rose-500/20",
+        glowBg: "bg-rose-500",
+        hexColor: "rgba(244, 63, 94, 0.5)",
       }
     ];
   };
@@ -2041,6 +2045,9 @@ export default function App() {
                   <div className={`border-l-4 p-4 rounded-xl flex items-center gap-3 text-xs font-semibold ${summaryText.style}`}>
                     <span>{summaryText.text}</span>
                   </div>
+
+                  {/* Fasting Tracker Widget */}
+                  <FastingTracker db={db} updateDb={setDb} />
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     
@@ -2885,6 +2892,8 @@ export default function App() {
                     currentDate={currentDate} 
                     daysData={db.days} 
                     targets={targets}
+                    requireFastingForPerfectDay={db.settings.requireFastingForPerfectDay}
+                    activeFastingHours={db.fasting?.isFasting ? ((Date.now() - (db.fasting.startTime || Date.now())) / 3600000) : 0}
                     onSelectDate={(dateStr) => {
                       setCurrentDate(dateStr);
                     }} 
@@ -2900,15 +2909,23 @@ export default function App() {
                   <div className="relative group">
                     <MouseGlow />
                     <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-5 space-y-4">
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center flex-wrap gap-3">
                         <div className="flex items-center gap-2">
                           <Camera className="w-4 h-4 text-purple-400"/>
                           <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">體態紀錄照片</h4>
                         </div>
-                        <label className="bg-white/5 text-zinc-300 border border-white/10 hover:bg-white/10 font-bold text-[10px] px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-1.5">
-                          <Plus className="w-3 h-3"/> 上傳今日自拍
-                          <input type="file"accept="image/*"className="hidden"onChange={handlePhotoUpload} />
-                        </label>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => setShowBeforeAfterModal(true)}
+                            className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 font-bold text-[10px] px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5"
+                          >
+                            <Sparkles className="w-3 h-3"/> 體態對比
+                          </button>
+                          <label className="bg-white/5 text-zinc-300 border border-white/10 hover:bg-white/10 font-bold text-[10px] px-3 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-1.5">
+                            <Plus className="w-3 h-3"/> 上傳今日自拍
+                            <input type="file"accept="image/*"className="hidden"onChange={handlePhotoUpload} />
+                          </label>
+                        </div>
                       </div>
                       
                       {(() => {
@@ -3599,6 +3616,22 @@ export default function App() {
                           <span className="text-zinc-650 font-bold w-6">毫升</span>
                         </div>
                       </div>
+
+                      <div className="flex justify-between items-center mt-2 border-t border-white/5 pt-4">
+                        <div className="flex flex-col">
+                          <span className="text-emerald-400 font-bold">嚴格完美達標模式：</span>
+                          <span className="text-[10px] text-zinc-500">勾選後，日曆上的「連續完美達標」將要求當日也必須達成斷食目標</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={settings.requireFastingForPerfectDay || false}
+                            onChange={(e) => handleUpdateSettings({ requireFastingForPerfectDay: e.target.checked })}
+                          />
+                          <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
                     </div>
 
                     <button
@@ -3875,6 +3908,59 @@ export default function App() {
           onClose={() => setShowShareModal(false)}
         />
       )}
+
+      {/* ────────────────── MODAL: BEFORE & AFTER ────────────────── */}
+      {showBeforeAfterModal && (() => {
+        const allPhotos = Object.entries(db.days)
+          .flatMap(([dStr, rec]) => ((rec as DayRecord).photos || []).map(p => ({ dateStr: dStr, ...p })))
+          .sort((a, b) => a.timestamp - b.timestamp);
+        
+        const oldestPhoto = allPhotos[0];
+        const newestPhoto = allPhotos[allPhotos.length - 1];
+
+        return (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowBeforeAfterModal(false)}>
+            <div className="w-full max-w-[800px] flex flex-col items-center gap-4 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center w-full">
+                <h3 className="text-lg font-black text-white">體態對比 (Before & After)</h3>
+                <button onClick={() => setShowBeforeAfterModal(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors text-white">
+                  <X className="w-5 h-5"/>
+                </button>
+              </div>
+              
+              {!oldestPhoto ? (
+                <div className="bg-white/5 border border-white/10 p-10 rounded-2xl text-center w-full">
+                  <p className="text-zinc-400">目前還沒有紀錄照片，快去上傳吧！</p>
+                </div>
+              ) : oldestPhoto.id === newestPhoto.id ? (
+                <div className="bg-white/5 border border-white/10 p-10 rounded-2xl text-center w-full">
+                  <p className="text-zinc-400">目前只有一張照片，上傳第二張照片即可顯示對比！</p>
+                </div>
+              ) : (
+                <div className="flex flex-col md:flex-row gap-4 w-full">
+                  {/* Before */}
+                  <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden relative group">
+                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full z-10 flex items-center gap-2">
+                      <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Before</span>
+                      <span className="text-[10px] text-zinc-300 font-mono">{oldestPhoto.dateStr}</span>
+                    </div>
+                    <img src={oldestPhoto.url} className="w-full h-auto max-h-[60vh] object-contain bg-black/50" alt="Before" />
+                  </div>
+                  
+                  {/* After */}
+                  <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden relative group">
+                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full z-10 flex items-center gap-2">
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">After</span>
+                      <span className="text-[10px] text-zinc-300 font-mono">{newestPhoto.dateStr}</span>
+                    </div>
+                    <img src={newestPhoto.url} className="w-full h-auto max-h-[60vh] object-contain bg-black/50" alt="After" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ────────────────── MODAL: ADD FOOD ────────────────── */}
       {showAddModal && (

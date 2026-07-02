@@ -8,9 +8,11 @@ interface HistoryCalendarProps {
   onSelectDate: (dateStr: string) => void;
   daysData: Record<string, any>; // Pass db.days
   targets: any; // Pass NutritionTargets
+  requireFastingForPerfectDay?: boolean;
+  activeFastingHours?: number; // Pass current active fasting hours for today
 }
 
-export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, onSelectDate, daysData, targets }) => {
+export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, onSelectDate, daysData, targets, requireFastingForPerfectDay, activeFastingHours }) => {
   const initialDate = new Date(currentDate);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
 
@@ -37,6 +39,68 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, o
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
+  const todayDateObj = new Date();
+  const todayDateStr = formatTargetDate(todayDateObj);
+
+  const isDayPerfect = (dateStr: string) => {
+    const dayData = daysData[dateStr];
+    if (!dayData || !dayData.meals) return false;
+    let dailyKcal = 0;
+    let dailyProtein = 0;
+    let hasMeals = false;
+    Object.values(dayData.meals).forEach((meal: any) => {
+      if (meal.length > 0) hasMeals = true;
+      meal.forEach((item: any) => {
+        if (item.type === "group") {
+          item.items.forEach((sub: any) => {
+            dailyKcal += sub.kcal || 0;
+            dailyProtein += sub.protein || 0;
+          });
+        } else {
+          dailyKcal += item.kcal || 0;
+          dailyProtein += item.protein || 0;
+        }
+      });
+    });
+    const isOverKcal = dailyKcal > (targets?.kcal || 2000);
+    const kcalProteinOk = hasMeals && !isOverKcal && (dailyProtein >= ((targets?.protein || 50) * 0.9));
+    
+    if (requireFastingForPerfectDay) {
+      let fHours = dayData.fastingHours || 0;
+      // If it's today and there is an active fast running, consider the active hours
+      if (dateStr === todayDateStr && activeFastingHours && activeFastingHours > fHours) {
+        fHours = activeFastingHours;
+      }
+      return kcalProteinOk && fHours >= 12; // At least 12 hours fast required
+    }
+    return kcalProteinOk;
+  };
+
+  let streak = 0;
+  const todayDate = new Date();
+  const todayStr = formatTargetDate(todayDate);
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = formatTargetDate(yesterdayDate);
+
+  if (isDayPerfect(todayStr)) {
+    streak = 1;
+    let d = new Date(todayDate);
+    d.setDate(d.getDate() - 1);
+    while (isDayPerfect(formatTargetDate(d))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+  } else if (isDayPerfect(yesterdayStr)) {
+    streak = 1;
+    let d = new Date(yesterdayDate);
+    d.setDate(d.getDate() - 1);
+    while (isDayPerfect(formatTargetDate(d))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+  }
+
   return (
     <div className="relative group">
       <MouseGlow />
@@ -47,9 +111,18 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, o
           <button onClick={handlePrevMonth} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
             <ChevronLeft className="w-5 h-5 text-zinc-400" />
           </button>
-          <span className="text-sm font-extrabold text-zinc-100">
-            {currentMonth.getFullYear()} 年 {currentMonth.getMonth() + 1} 月
-          </span>
+          
+          <div className="flex flex-col items-center">
+            <span className="text-sm font-extrabold text-zinc-100">
+              {currentMonth.getFullYear()} 年 {currentMonth.getMonth() + 1} 月
+            </span>
+            {streak > 0 && (
+              <span className="mt-1 text-[10px] font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 flex items-center gap-1">
+                🔥 連續完美達標 {streak} 天
+              </span>
+            )}
+          </div>
+
           <button onClick={handleNextMonth} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
             <ChevronRight className="w-5 h-5 text-zinc-400" />
           </button>
