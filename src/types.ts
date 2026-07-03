@@ -79,6 +79,7 @@ export interface Settings {
   customWaterCup?: number;
   geminiApiKey?: string;
   autoWaterTarget?: boolean;
+  enableFasting?: boolean;
   requireFastingForPerfectDay?: boolean;
 }
 

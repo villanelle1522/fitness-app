@@ -96,3 +96,20 @@ export function formatFriendlyDate(dateStr: string): string {
   const parts = dateStr.split("-");
   return `${parts[1]}月${parts[2]}日`;
 }
+
+export function getRecordMacros(record: import("../types").MealRecord) {
+  if ("type" in record && (record as any).type === "group") {
+    return {
+      kcal: record.items.reduce((sum, item) => sum + (item.kcal || 0), 0),
+      protein: record.items.reduce((sum, item) => sum + (item.protein || 0), 0),
+      carb: record.items.reduce((sum, item) => sum + (item.carb || 0), 0),
+      fat: record.items.reduce((sum, item) => sum + (item.fat || 0), 0)
+    };
+  }
+  return {
+    kcal: (record as any).kcal || 0,
+    protein: (record as any).protein || 0,
+    carb: (record as any).carb || 0,
+    fat: (record as any).fat || 0
+  };
+}

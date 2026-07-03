@@ -1,6 +1,6 @@
 import { MouseGlow } from "./MouseGlow";
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface HistoryCalendarProps {
@@ -118,7 +118,7 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ currentDate, o
             </span>
             {streak > 0 && (
               <span className="mt-1 text-[10px] font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 flex items-center gap-1">
-                🔥 連續完美達標 {streak} 天
+                <Flame className="w-3 h-3 text-orange-400" /> 連續完美達標 {streak} 天
               </span>
             )}
           </div>

@@ -73,7 +73,7 @@ export const FastingTracker: React.FC<FastingTrackerProps> = ({ db, updateDb }) 
                 今日已紀錄: {Math.floor(db.days[getTodayString()].fastingHours!)}h {Math.round((db.days[getTodayString()].fastingHours! % 1) * 60)}m
               </p>
             ) : (
-              <p className="text-[10px] text-zinc-500 hidden sm:block truncate">目前不在斷食中</p>
+              <p className="text-[10px] text-zinc-500 truncate">目前不在斷食中</p>
             )}
           </div>
         </div>
@@ -110,33 +110,33 @@ export const FastingTracker: React.FC<FastingTrackerProps> = ({ db, updateDb }) 
 
   const isCompleted = elapsedMs >= targetMs;
 
-  let dynamicMsg = "💪 剛開始斷食，請多補充水分！";
+  let dynamicMsg = "剛開始斷食，請多補充水分！";
   let dynamicIcon = <Activity className="w-3 h-3 text-sky-400" />;
   let msgColor = "text-sky-400";
   let bgGlow = "bg-sky-500/10 border-sky-500/20";
 
   if (elapsedHours >= Math.max(16, fasting.targetHours)) {
-    dynamicMsg = "✨ 目標達成！細胞自噬修復啟動中！";
+    dynamicMsg = "目標達成！細胞自噬修復啟動中！";
     dynamicIcon = <Sparkles className="w-3 h-3 text-emerald-400" />;
     msgColor = "text-emerald-400";
     bgGlow = "bg-emerald-500/10 border-emerald-500/20";
   } else if (elapsedHours >= fasting.targetHours) {
-    dynamicMsg = "✨ 目標達成！做得好！";
+    dynamicMsg = "目標達成！做得好！";
     dynamicIcon = <Sparkles className="w-3 h-3 text-emerald-400" />;
     msgColor = "text-emerald-400";
     bgGlow = "bg-emerald-500/10 border-emerald-500/20";
   } else if (elapsedHours >= 14) {
-    dynamicMsg = "🚀 脂肪加速燃燒中，堅持住！";
+    dynamicMsg = "脂肪加速燃燒中，堅持住！";
     dynamicIcon = <Flame className="w-3 h-3 text-orange-400" />;
     msgColor = "text-orange-400";
     bgGlow = "bg-orange-500/10 border-orange-500/20";
   } else if (elapsedHours >= 12) {
-    dynamicMsg = "🔥 肝糖耗盡，正式進入燃脂模式！";
+    dynamicMsg = "肝糖耗盡，正式進入燃脂模式！";
     dynamicIcon = <Flame className="w-3 h-3 text-amber-400" />;
     msgColor = "text-amber-400";
     bgGlow = "bg-amber-500/10 border-amber-500/20";
   } else if (elapsedHours >= 4) {
-    dynamicMsg = "💧 身體正在穩定血糖與消化...";
+    dynamicMsg = "身體正在穩定血糖與消化...";
     dynamicIcon = <Activity className="w-3 h-3 text-sky-400" />;
     msgColor = "text-sky-400";
     bgGlow = "bg-sky-500/10 border-sky-500/20";

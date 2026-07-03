@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Trophy } from "lucide-react";
 import { DayRecord, NutritionTargets, MealRecord, MealItem, MealGroup } from "../types";
 import { getDateString, formatFriendlyDate } from "../utils/nutrition";
 
@@ -34,7 +35,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
     return sum;
   };
 
-  const periodCalorie = 14;
+  const periodCalorie = 7;
   const metricChartData = useMemo(() => {
     const data: { date: string; val: number }[] = [];
     for (let i = periodCalorie - 1; i >= 0; i--) {
@@ -68,8 +69,13 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
         <div className="absolute -inset-1 rounded-3xl opacity-[0.2] blur-xl bg-gradient-to-br from-indigo-500/20 via-white/10 to-transparent group-hover:opacity-[0.4] group-active:opacity-[0.5] group-active:scale-95 transition-all duration-500 pointer-events-none" />
         <div className="relative bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-4 h-full flex flex-col justify-between">
           
-          <div className="flex justify-between items-start flex-wrap gap-2 mb-4">
-            <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">營養消耗趨勢 (近 14 天)</h4>
+          <div className="flex justify-between items-start flex-wrap gap-2 mb-2">
+            <div>
+              <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-1">營養攝取趨勢 (近 7 天)</h4>
+              <p className="text-[10px] text-zinc-500 font-bold leading-relaxed">
+                透過追蹤一週內的營養素變化，可以檢視飲食是否穩定，並依據目標線調整未來的攝取量，確保身體處於最佳代謝狀態。
+              </p>
+            </div>
             
             {/* Tabs */}
             <div className="flex bg-black/50 rounded-lg p-0.5 border border-zinc-800/80">
@@ -154,10 +160,15 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
         </div>
 
         {/* X Axis Labels */}
-        <div className="flex justify-between text-[9px] text-zinc-400 font-mono mt-1">
-          <span>{formatFriendlyDate(data[0].date)}</span>
-          <span>{formatFriendlyDate(data[Math.floor(periodCalorie / 2)].date)}</span>
-          <span>{formatFriendlyDate(data[periodCalorie - 1].date)}</span>
+        <div className="flex justify-between text-[9px] text-zinc-500 font-mono mt-2 px-1">
+          {data.map((item, index) => {
+            const dateStr = item.date.split("-");
+            return (
+              <div key={index} className="flex-1 text-center truncate">
+                {dateStr[1]}/{dateStr[2]}
+              </div>
+            );
+          })}
         </div>
 
         {/* Hover Tooltip */}
@@ -294,7 +305,7 @@ export const Charts: React.FC<ChartsProps> = ({ days, targets, goalWeight }) => 
             <div className="flex items-center gap-2 text-[9px] font-bold flex-wrap">
               {hasWeight && (
                 <span className="flex items-center gap-1 text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 text-[8px] uppercase tracking-wider">
-                  🏆 目標 {goalWeight} kg
+                  <Trophy className="w-2.5 h-2.5" /> 目標 {goalWeight} kg
                 </span>
               )}
               <span className="flex items-center gap-1 text-indigo-400 bg-indigo-500/5 px-1.5 py-0.5 rounded border border-indigo-500/10">

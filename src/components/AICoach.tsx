@@ -3,6 +3,7 @@ import { Sparkles, Send, X, Bot, User, TrendingUp, Droplet, Flame, Zap, RotateCc
 import { motion, AnimatePresence } from "motion/react";
 import { Settings } from "../types";
 import { GoogleGenAI } from "@google/genai";
+import Markdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -43,12 +44,12 @@ export const AICoach: React.FC<AICoachProps> = ({
   useEffect(() => {
     if (messages.length === 0) {
       const modeText = settings.mode || "減脂";
-      const goalText = settings.goalWeight ? ` ➡️ 目標 ${settings.goalWeight}kg` : "";
+      const goalText = settings.goalWeight ? ` ➔ 目標 ${settings.goalWeight}kg` : "";
       const proteinPercent = settings.targets.protein 
         ? Math.round((todayStats.protein / settings.targets.protein) * 100)
         : 0;
         
-      const welcome = `嗨！我是你的 AI 體態與營養教練 **FitAI** 🎯。
+      const welcome = `嗨！我是你的 AI 體態與營養教練 **FitAI**。
 
 我已經載入你目前的個人化健康指標：
 • **當前設定目標**：${modeText} (目前體重: ${settings.weight}kg${goalText})
@@ -56,7 +57,7 @@ export const AICoach: React.FC<AICoachProps> = ({
 • **核心蛋白質達成率**：${todayStats.protein}g / ${settings.targets.protein}g (${proteinPercent}%)
 • **今日累計喝水量**：${todayStats.water} / ${settings.waterTarget} ml
 
-不論你是想詢問晚餐可以吃什麼，或是希望為你安排下週的阻力訓練計畫、分析目前的體重趨勢，都隨時可以問我！請點擊下方的建議，或直接輸入你的疑問 👇`;
+不論你是想詢問晚餐可以吃什麼，或是希望為你安排下週的阻力訓練計畫、分析目前的體重趨勢，都隨時可以問我！請點擊下方的建議，或直接輸入你的疑問。`;
 
       setMessages([{ role: "assistant", content: welcome }]);
     }
@@ -88,12 +89,12 @@ export const AICoach: React.FC<AICoachProps> = ({
 你的任務是根據使用者的飲食數據與目標，提供精準、科學、且易於執行的建議。
 
 【使用者狀態】
-- 性別：${settings.gender}
+- 性別：${settings.sex}
 - 年齡：${settings.age}
 - 身高：${settings.height} cm
 - 目前體重：${settings.weight} kg
 - 目標體重：${settings.goalWeight} kg
-- 每日活動度：${settings.activityLevel}
+- 每日活動度：${settings.activity}
 
 【今日已攝取】
 - 熱量：${todayStats.kcal} kcal
@@ -134,7 +135,7 @@ ${weightTrend !== null ? `較上次紀錄 ${weightTrend > 0 ? "+" : ""}${weightT
         ...prev,
         {
           role: "assistant",
-          content: `⚠️ ${err.message || "連線失敗！請檢查您的網路狀態。"}`,
+          content: `連線失敗！請檢查您的網路狀態。${err.message || ""}`,
         },
       ]);
     } finally {
@@ -147,10 +148,10 @@ ${weightTrend !== null ? `較上次紀錄 ${weightTrend > 0 ? "+" : ""}${weightT
   };
 
   const suggestionChips = [
-    { label: "📋 深度分析我今天的飲食比例與改善建議", text: "請分析我今天攝取的熱量與三大營養素，並根據我目前的目標給我一些飲食優化建議與微量營養素補充指南。" },
-    { label: "🥗 我今天碳水/蛋白質還差一點，晚餐推薦吃什麼？", text: "對照我今天還剩餘的宏量營養素，推薦我 3 種晚餐的搭配選擇（希望包含超商與外食選項）。" },
-    { label: "🏋️‍♂️ 我今天打算去重訓，安排運動前後的能量補充指南", text: "我今天要進行重量訓練，請幫我規劃運動前 1 小時、運動後 30 分鐘內的飲食安排與補水、電解質建議。" },
-    { label: "💡 覺得最近體重卡住了，如何有效突破增肌/減脂瓶頸？", text: "我的目標是減脂，如果體重卡著不動，你建議我從熱量攝取、有氧運動、睡眠或是重訓強度進行哪些具體的微調？" },
+    { label: "深度分析我今天的飲食比例與改善建議", text: "請分析我今天攝取的熱量與三大營養素，並根據我目前的目標給我一些飲食優化建議與微量營養素補充指南。" },
+    { label: "我今天碳水/蛋白質還差一點，晚餐推薦吃什麼？", text: "對照我今天還剩餘的宏量營養素，推薦我 3 種晚餐的搭配選擇（希望包含超商與外食選項）。" },
+    { label: "我今天打算去重訓，安排運動前後的能量補充指南", text: "我今天要進行重量訓練，請幫我規劃運動前 1 小時、運動後 30 分鐘內的飲食安排與補水、電解質建議。" },
+    { label: "覺得最近體重卡住了，如何有效突破增肌/減脂瓶頸？", text: "我的目標是減脂，如果體重卡著不動，你建議我從熱量攝取、有氧運動、睡眠或是重訓強度進行哪些具體的微調？" },
   ];
 
   if (!isOpen) return null;
@@ -232,10 +233,16 @@ ${weightTrend !== null ? `較上次紀錄 ${weightTrend > 0 ? "+" : ""}${weightT
                   className={`rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed whitespace-pre-wrap select-text selection:bg-indigo-500 selection:text-white ${
                     m.role === "user"
                       ? "bg-indigo-600 text-white font-semibold rounded-tr-none"
-                      : "bg-white/[0.04] border border-white/[0.05] text-zinc-200 rounded-tl-none shadow-sm"
+                      : "bg-white/[0.04] border border-white/[0.05] text-zinc-200 rounded-tl-none shadow-sm prose-invert prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-strong:text-indigo-300"
                   }`}
                 >
-                  {m.content}
+                  {m.role === "user" ? (
+                    m.content
+                  ) : (
+                    <div className="markdown-body">
+                      <Markdown>{m.content}</Markdown>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ))}

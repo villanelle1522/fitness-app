@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
-import { MealItem } from "../types";
+import { MealItem, MealRecord } from "../types";
+import { getRecordMacros } from "../utils/nutrition";
 import { Camera, Sparkles, Upload, FileText, X, Check, ArrowRight, Salad, Copy } from "lucide-react";
 import { GoogleGenAI } from "@google/genai";
 
@@ -7,7 +8,7 @@ interface AIFoodAnalyzerProps {
   onAddParsedMeals: (mealCategory: string, items: MealItem[], groupName: string, saveToLibrary: boolean) => void;
   mealCategory: string;
   customApiKey?: string;
-  customFoods?: MealItem[];
+  customFoods?: MealRecord[];
 }
 
 export const AIFoodAnalyzer: React.FC<AIFoodAnalyzerProps> = ({ onAddParsedMeals, mealCategory, customApiKey, customFoods = [] }) => {
@@ -170,7 +171,7 @@ JSON 陣列中的每個物件結構如下（數值若無法估算請寫為 0，�
 
         let memoryContext = "";
         if (customFoods.length > 0) {
-          const memoryList = customFoods.map(f => `- ${f.name}: ${f.kcal} kcal, 蛋白質 ${f.protein}g, 碳水 ${f.carb}g, 脂肪 ${f.fat}g`).join('\n');
+          const memoryList = customFoods.map(f => `- ${f.name}: ${getRecordMacros(f).kcal} kcal, 蛋白質 ${getRecordMacros(f).protein}g, 碳水 ${getRecordMacros(f).carb}g, 脂肪 ${getRecordMacros(f).fat}g`).join('\n');
           memoryContext = `\n\n【使用者個人專屬記憶庫】\n以下是使用者常吃的個人食物清單及其營養素。如果您在圖片或文字中辨識出類似的餐點，請**優先套用**這些專屬記憶數據，而非一般通用數據：\n${memoryList}`;
         }
 
@@ -418,14 +419,14 @@ Provide the response strictly as a JSON object matching the requested schema con
           <Sparkles className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-sm font-extrabold text-zinc-100">AI 智慧食物相片 / 文字辨識</h3>
-          <p className="text-[11px] text-zinc-500">免去繁瑣的輸入，Gemini 智慧為您拆解成分與卡路里</p>
+          <h3 className="text-sm font-extrabold text-zinc-100">{customApiKey ? "AI 智慧食物相片 / 文字辨識" : "AI 輔助匯入"}</h3>
+          <p className="text-[11px] text-zinc-500">{customApiKey ? "免去繁瑣的輸入，Gemini 智慧為您拆解成分與卡路里" : "透過其他 AI 工具輔助，快速匯入餐點"}</p>
         </div>
       </div>
 
       {/* Tab Selection */}
-      <div className="flex border-b border-zinc-800/80 mb-4 text-xs font-bold gap-1">
-        {customApiKey && (
+      {customApiKey && (
+        <div className="flex border-b border-zinc-800/80 mb-4 text-xs font-bold gap-1">
           <button
             onClick={() => setActiveTab("direct")}
             className={`pb-2 px-3 relative transition-all cursor-pointer ${
@@ -437,19 +438,19 @@ Provide the response strictly as a JSON object matching the requested schema con
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
             )}
           </button>
-        )}
-        <button
-          onClick={() => setActiveTab("paste")}
-          className={`pb-2 px-3 relative transition-all cursor-pointer ${
-            activeTab === "paste" ? "text-indigo-400 font-extrabold" : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          <span> 複製提示詞 / 貼上 JSON</span>
-          {activeTab === "paste" && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
-          )}
-        </button>
-      </div>
+          <button
+            onClick={() => setActiveTab("paste")}
+            className={`pb-2 px-3 relative transition-all cursor-pointer ${
+              activeTab === "paste" ? "text-indigo-400 font-extrabold" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <span> 複製提示詞 / 貼上 JSON</span>
+            {activeTab === "paste" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
+            )}
+          </button>
+        </div>
+      )}
 
       {!isAnalyzing && parsedItems.length === 0 && (
         <div className="space-y-4">

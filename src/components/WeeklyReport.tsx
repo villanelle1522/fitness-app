@@ -99,13 +99,13 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
     let macroInsight = "";
     if (daysWithFood >= 3) {
       if (avgProtein < targetProtein * 0.8) {
-        macroInsight = `⚠️ 蛋白質嚴重不足 (平均 ${avgProtein}g / 目標 ${targetProtein}g)。這會導致肌肉流失並降低基礎代謝率。建議多攝取雞胸肉、雞蛋或豆腐。`;
+        macroInsight = `蛋白質嚴重不足 (平均 ${avgProtein}g / 目標 ${targetProtein}g)。這會導致肌肉流失並降低基礎代謝率。建議多攝取雞胸肉、雞蛋或豆腐。`;
       } else if (avgCarb > targetCarb * 1.2) {
-        macroInsight = `⚠️ 碳水化合物攝取過量 (平均 ${avgCarb}g / 目標 ${targetCarb}g)。過多的碳水會影響胰島素阻抗，減緩脂肪燃燒。建議減少澱粉比例。`;
+        macroInsight = `碳水化合物攝取過量 (平均 ${avgCarb}g / 目標 ${targetCarb}g)。過多的碳水會影響胰島素阻抗，減緩脂肪燃燒。建議減少澱粉比例。`;
       } else if (avgProtein >= targetProtein * 0.9) {
-        macroInsight = `🌟 蛋白質攝取極佳！維持高蛋白飲食有助於增肌減脂，讓您在減重過程保持良好代謝。`;
+        macroInsight = `蛋白質攝取極佳！維持高蛋白飲食有助於增肌減脂，讓您在減重過程保持良好代謝。`;
       } else {
-        macroInsight = `✅ 營養素攝取穩定，請繼續保持目前的飲食結構。`;
+        macroInsight = `營養素攝取穩定，請繼續保持目前的飲食結構。`;
       }
     } else {
       macroInsight = `記錄天數不足，請持續記錄以獲得營養素偏差分析。`;
@@ -126,14 +126,14 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
       
       if (weightToLose > 0) {
         const predictedWeeks = Math.ceil(weightToLose / weeklyLoss);
-        predictionInsight = `🔮 達標預測：過去一週平均每天產生 ${deficitPerDay} kcal 熱量赤字。繼續保持，預計約 ${predictedWeeks} 週後達到目標體重 (${goalWeight}kg)！`;
+        predictionInsight = `達標預測：過去一週平均每天產生 ${deficitPerDay} kcal 熱量赤字。繼續保持，預計約 ${predictedWeeks} 週後達到目標體重 (${goalWeight}kg)！`;
       } else {
-        predictionInsight = `🎉 您已達標！建議切換為「維持體重」模式，將熱量調整至 ${tdee} kcal。`;
+        predictionInsight = `您已達標！建議切換為「維持體重」模式，將熱量調整至 ${tdee} kcal。`;
       }
     } else if (daysWithFood >= 4 && deficitPerDay <= 0) {
-      predictionInsight = `⚖️ 狀態預測：您目前的熱量攝取與消耗達到平衡 (無赤字)。若希望減重，請增加運動量或稍微減少每日攝取。`;
+      predictionInsight = `狀態預測：您目前的熱量攝取與消耗達到平衡 (無赤字)。若希望減重，請增加運動量或稍微減少每日攝取。`;
     } else {
-      predictionInsight = "📊 記錄天數不足或未產生赤字，AI 尚無法準確預測達標時間。";
+      predictionInsight = "記錄天數不足或未產生赤字，尚無法準確預測達標時間。";
     }
 
     if (daysWithFood >= 4 && startWeight && endWeight) {
@@ -198,14 +198,14 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
       const shortVal = avgShortDiff !== null ? avgShortDiff : 0;
 
       if (avgDeepDiff !== null && deepVal < mildVal && deepVal < shortVal) {
-        fastingCorrelationInsight = `📊 數據分析：進行 16 小時以上「進階斷食」時，您隔天的體重降幅最大 (平均 ${deepVal.toFixed(2)} kg)。這證實了 16 小時以上能觸發更深度的肝糖消耗與脂肪動員，對您的減重方案極具成效！`;
+        fastingCorrelationInsight = `數據顯示：16 小時以上「進階斷食」隔天體重降幅最大 (平均 ${deepVal.toFixed(2)} kg)。`;
       } else if (avgMildDiff !== null && mildVal < shortVal) {
-        fastingCorrelationInsight = `📊 數據分析：進行 12-16 小時「溫和斷食」已能為您帶來良好的隔天體重變化 (平均 ${mildVal.toFixed(2)} kg)。若希望突破，可嘗試逐步將斷食時間拉長至 16 小時。`;
+        fastingCorrelationInsight = `數據顯示：12-16 小時「溫和斷食」隔天體重降幅良好 (平均 ${mildVal.toFixed(2)} kg)。若欲突破，可漸進拉長至 16 小時。`;
       } else {
-        fastingCorrelationInsight = `📊 數據分析：目前數據顯示不同斷食長度對體重的即時降幅接近。建議拉長觀察期，或結合低碳水飲食，讓身體能更順暢地在斷食期間利用脂肪。`;
+        fastingCorrelationInsight = `數據顯示：不同斷食長度降幅接近。建議拉長觀察期，或結合低碳水飲食。`;
       }
     } else {
-      fastingCorrelationInsight = "💡 快來開始您的首次斷食吧！連續記錄斷食時長與體重，AI 會自動為您計算出「最適合您的黃金斷食區間（如 168 或 186）與體重降幅關聯」。";
+      fastingCorrelationInsight = "連續記錄斷食時長與體重，分析您的黃金斷食區間。";
     }
 
     // 3. 💰 金額/餐費開銷與營養 CP 值 (性價比) 深度分析
@@ -385,7 +385,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
               <AlertCircle className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h3 className="font-black text-white text-lg tracking-tight">AI 週報表與健康動態</h3>
+              <h3 className="font-black text-white text-lg tracking-tight">週報表與健康動態</h3>
               <p className="text-xs text-zinc-400 font-bold">根據您過去 7 天的數據分析與建議</p>
             </div>
           </div>
@@ -438,10 +438,14 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
           <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex flex-col gap-2 relative z-10">
             <div className="flex items-center justify-between">
               <span className="text-xs text-indigo-300 font-bold">目前熱量目標: {report.targetKcal} kcal</span>
-              <span className="text-xs text-indigo-200 font-black">AI 建議下調: {report.targetKcal + report.targetAdjustment} kcal</span>
+              <span className="text-xs text-indigo-200 font-black">
+                {report.targetAdjustment < 0 ? "建議調降至" : "建議調升至"}: {report.targetKcal + report.targetAdjustment} kcal
+              </span>
             </div>
             <p className="text-[11px] text-indigo-300/80 leading-relaxed font-bold">
-              調降目標有助於維持穩定的熱量赤字，搭配每天記錄的體重與飲食，下週系統會依據體重表現重新評估您的動態平衡點。
+              {report.targetAdjustment < 0 
+                ? "調降目標有助於維持穩定的熱量赤字，搭配每天記錄的體重與飲食，下週系統會依據體重表現重新評估您的動態平衡點。" 
+                : "適度調升目標有助於提供充足的能量與營養，搭配每天記錄的體重與飲食，下週系統會重新評估您的動態平衡點。"}
             </p>
           </div>
         )}
@@ -591,7 +595,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
             </div>
             
             <p className="text-[10px] text-zinc-500 font-bold text-center">
-              ⚠️ 註：執行 16 小時以上斷食時，請確保於進食窗口攝取足夠水分與充足蛋白質，以防止肌肉流失。
+              註：執行 16 小時以上斷食時，請確保於進食窗口攝取足夠水分與充足蛋白質，以防止肌肉流失。
             </p>
           </div>
         )}
@@ -610,7 +614,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h3 className="font-black text-white text-base tracking-tight">💰 飲食開銷與營養 CP 值 (性價比) 分析</h3>
+                <h3 className="font-black text-white text-base tracking-tight">飲食開銷與營養 CP 值 (性價比) 分析</h3>
                 <span className="text-[9px] font-black uppercase tracking-wider bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">選填</span>
               </div>
               <p className="text-[10px] text-zinc-400 font-bold">掌握健康飲食與預算控制的完美平衡點</p>
@@ -665,7 +669,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
 
             {/* Protein CP Kings (Highest protein value per dollar spent) */}
             <div className="bg-black/20 border border-white/5 rounded-2xl p-4 space-y-3">
-              <span className="text-xs text-zinc-300 font-extrabold block">🏆 蛋白質 CP 值之王 (本週最划算高蛋白食物)</span>
+              <span className="text-xs text-zinc-300 font-extrabold block">蛋白質 CP 值之王 (本週最划算高蛋白食物)</span>
               
               {report.topProteinCpItems.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -703,7 +707,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
               <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <Flame className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs text-amber-300 font-extrabold">📊 卡路里合規度與飲食開銷交叉洞察</span>
+                  <span className="text-xs text-amber-300 font-extrabold">卡路里與預算關聯分析</span>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 text-center">
@@ -719,11 +723,11 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
 
                 {report.avgOverSpend > report.avgMetSpend ? (
                   <p className="text-[11px] text-zinc-400 font-bold leading-relaxed">
-                    💡 數據分析結論：當您熱量不超標的日子，日平均餐費比超標日<strong>省下了 ${report.avgOverSpend - report.avgMetSpend} 元</strong> (約可省下 <strong>{Math.round((1 - report.avgMetSpend / report.avgOverSpend) * 100)}%</strong> 的開銷)！這說明精確控制分量、減少外送大餐或點心，<strong>不僅能順利達成減脂目標，更是極致的省錢之道！</strong>
+                    結論：不超標日平均餐費比超標日<strong>省下 ${report.avgOverSpend - report.avgMetSpend} 元</strong> (約 <strong>{Math.round((1 - report.avgMetSpend / report.avgOverSpend) * 100)}%</strong>)。精確控制分量不僅有助減脂，還能省錢！
                   </p>
                 ) : (
                   <p className="text-[11px] text-zinc-400 font-bold leading-relaxed">
-                    💡 數據分析結論：健康乾淨飲食與日常飲食開銷相當平穩。請繼續保持原型食物的攝取，這能確保您每一分錢都花在最高 CP 值的營養素上！
+                    結論：健康飲食與日常開銷相當平穩。請繼續保持原型食物攝取，確保營養高 CP 值。
                   </p>
                 )}
               </div>
@@ -736,11 +740,11 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
             <div className="relative bg-black/40 border border-white/[0.08] rounded-2xl p-4 space-y-4">
               
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
-                <span className="text-[10px] uppercase font-black text-amber-400 tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-full inline-block mb-1.5 animate-pulse">
-                  未啟動 ➔ 互動範例展示 (Demo Mode)
+                <span className="text-[10px] uppercase font-black text-amber-400 tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-full inline-block mb-1.5">
+                  範例展示
                 </span>
                 <p className="text-xs text-zinc-300 font-bold">
-                  填寫餐點「金額」即可啟動本分析。下方為您模擬成功記帳後的極致 AI 洞察分析：
+                  紀錄餐點「金額」解鎖開銷分析，下方為模擬範例：
                 </p>
               </div>
 
@@ -758,7 +762,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
 
               {/* Demo Top CP Items */}
               <div className="space-y-2 opacity-75 bg-black/40 border border-zinc-850 p-3 rounded-xl">
-                <span className="text-[11px] text-zinc-400 font-black block">🏆 蛋白質 CP 值之王 (每 100 元可買到最多蛋白質的食物)</span>
+                <span className="text-[11px] text-zinc-400 font-black block">蛋白質 CP 值之王 (每 100 元可買到最多蛋白質的食物)</span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2 flex flex-col justify-between">
                     <div>
@@ -788,15 +792,15 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
               <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-3 opacity-75">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                  <span className="text-[11px] text-amber-300 font-extrabold">卡路里與飲食預算交叉洞察 (模擬分析)</span>
+                  <span className="text-[11px] text-amber-300 font-extrabold">預算關聯分析 (範例)</span>
                 </div>
                 <p className="text-[10px] text-zinc-400 font-bold leading-relaxed">
-                  💡 數據結論：在您飲食熱量守規的日子裡，日平均餐費為 $180 元，超標大餐日為 $350 元。<strong>精確克制飲食，每週可自動幫您存下 $1,190 元！</strong> 讓健康和荷包在不知不覺中完美升級！
+                  數據結論：在您飲食熱量守規的日子裡，日平均餐費為 $180 元，超標大餐日為 $350 元。<strong>精確克制飲食，每週可自動幫您存下 $1,190 元！</strong> 讓健康和荷包在不知不覺中完美升級！
                 </p>
               </div>
 
               <div className="text-[10px] text-zinc-500 text-center font-bold">
-                💡 馬上在「今日記錄」中填寫餐點金額（選填），讓 AI 計算出專屬於您的飲食經濟週報吧！
+                在「今日記錄」中填寫餐點金額（選填），解鎖開銷分析。
               </div>
             </div>
           </div>
@@ -805,27 +809,15 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, chi
     </>
   );
 
-  const shouldPrioritizeOtherSections = report.hasAnyFastingData || report.hasPriceLogs;
-
   return (
     <div className="space-y-6">
       {section1General}
 
-      {shouldPrioritizeOtherSections && (
-        <>
-          {section2Fasting}
-          {section3Expense}
-        </>
-      )}
+      {report.hasAnyFastingData && section2Fasting}
+      
+      {report.hasPriceLogs && section3Expense}
 
       {children}
-
-      {!shouldPrioritizeOtherSections && (
-        <>
-          {section2Fasting}
-          {section3Expense}
-        </>
-      )}
     </div>
   );
 };

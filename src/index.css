@@ -67,3 +67,22 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #27272a;
 }
+
+/* Markdown styling */
+.markdown-body p {
+  margin-bottom: 0.5em;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.markdown-body ul {
+  list-style-type: disc;
+  padding-left: 1.25em;
+  margin-bottom: 0.5em;
+}
+.markdown-body li {
+  margin-bottom: 0.25em;
+}
+.markdown-body strong {
+  color: #a5b4fc; /* indigo-300 */
+}

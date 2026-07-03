@@ -6,7 +6,7 @@ import {
 } from "./types";
 import { 
   getTodayString, getDateString, formatFriendlyDate, 
-  calculateTargets, getRecentWeightTrend 
+  calculateTargets, getRecentWeightTrend, getRecordMacros 
 } from "./utils/nutrition";
 import { MouseGlow } from "./components/MouseGlow";
 import { Charts } from "./components/Charts";
@@ -1953,7 +1953,7 @@ export default function App() {
         </nav>
 
         {/* Mobile Navigation Header */}
-        <header className="md:hidden flex justify-between items-center w-full max-w-[480px] mx-auto bg-zinc-950/75 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-40">
+        <header className="md:hidden flex justify-between items-center w-full max-w-[480px] mx-auto bg-transparent p-4 z-40 relative">
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-indigo-400"/>
             <h1 className="text-sm font-black tracking-tight">健身飲食紀錄</h1>
@@ -1967,7 +1967,7 @@ export default function App() {
         <main 
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          className="flex-1 w-full p-4 sm:p-6 md:p-8 md:h-full md:overflow-y-auto overflow-x-hidden"
+          className="flex-1 w-full p-4 sm:p-6 md:p-8 md:h-full md:overflow-y-auto"
         >
           
           {/* Header Action / Date Navigator (Active only when activeTab is "today"or "history") */}
@@ -2003,13 +2003,15 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 sm:flex sm:flex-row sm:flex-wrap xl:flex-nowrap gap-2.5 w-full xl:w-auto mt-2 xl:mt-0">
-                <button
-                  onClick={() => setShowAICoach(true)}
-                  className="h-11 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-purple-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
-                >
-                  <Sparkles className="w-4 h-4 animate-pulse shrink-0"/>
-                  <span>AI 教練</span>
-                </button>
+                {db.settings.geminiApiKey && (
+                  <button
+                    onClick={() => setShowAICoach(true)}
+                    className="h-11 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-purple-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    <Sparkles className="w-4 h-4 animate-pulse shrink-0"/>
+                    <span>AI 教練</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowShareModal(true)}
                   className="h-11 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-indigo-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
@@ -2026,7 +2028,7 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-rose-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  className={`h-11 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-extrabold text-xs px-3 rounded-xl cursor-pointer border border-rose-500/20 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${!db.settings.geminiApiKey ? 'col-span-2 sm:col-span-1' : ''}`}
                 >
                   <Trash2 className="w-4 h-4 shrink-0"/>
                   <span>清空資料</span>
@@ -2055,7 +2057,9 @@ export default function App() {
                   </div>
 
                   {/* Fasting Tracker Widget */}
-                  <FastingTracker db={db} updateDb={setDb} />
+                  {(db.settings.enableFasting || db.fasting?.isFasting) && (
+                    <FastingTracker db={db} updateDb={setDb} />
+                  )}
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     
@@ -2071,7 +2075,7 @@ export default function App() {
                             <div className="flex justify-between items-center w-full">
                               <div className="flex items-center gap-2">
                                 <Flame className="w-4 h-4 text-indigo-400"/>
-                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">熱量消耗進度</span>
+                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">今日熱量攝取</span>
                               </div>
                               {loggedTotals.price > 0 && (
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
@@ -2299,7 +2303,7 @@ export default function App() {
                       <div className="bg-gradient-to-br from-indigo-900/20 to-transparent border border-indigo-500/20 rounded-2xl p-4 space-y-3">
                         <div className="flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-indigo-400" />
-                          <h3 className="text-xs font-black tracking-widest text-indigo-400 uppercase">💡 根據今日剩餘配額推薦</h3>
+                          <h3 className="text-xs font-black tracking-widest text-indigo-400 uppercase">根據今日剩餘配額推薦</h3>
                         </div>
                         {(() => {
                           const pRatio = targets.protein ? loggedTotals.protein / targets.protein : 0;
@@ -3227,48 +3231,32 @@ export default function App() {
                         if (filteredFoods.length === 0) {
                           return (
                             <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.04] border border-zinc-800/85 rounded-2xl p-10 text-center text-zinc-400 text-xs">
-                              沒有找到符合篩選條件的食物。
+                              找不到符合篩選條件的食物。
                             </div>
                           );
                         }
 
                         return (
-                          <div ref={libraryParentRef} className="h-[65vh] overflow-y-auto w-full pr-1 custom-scrollbar">
-                            <div 
-                              className="relative w-full" 
-                              style={{ height: `${libraryRowVirtualizer.getTotalSize()}px` }}
-                            >
-                              {libraryRowVirtualizer.getVirtualItems().map((virtualRow) => {
-                                const chunk = libraryChunks[virtualRow.index];
-                                return (
-                                  <div 
-                                    key={virtualRow.index} 
-                                    className="absolute top-0 left-0 w-full grid grid-cols-1 md:grid-cols-2 gap-4 pb-4"
-                                    style={{
-                                      transform: `translateY(${virtualRow.start}px)`,
-                                    }}
-                                  >
-                                  {chunk.map((f, i) => {
-                                    const realIdx = db.foods.indexOf(f);
-                                    const isSelected = selectedLibItems.includes(realIdx);
-                                    const isGrp = "type"in f && f.type === "group";
-                                    const itemCat = detectCategory(f);
-                                    
-                                    // Badge colors
-                                    const catColors: Record<string, string> = {
-                                      "澱粉": "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                                      "蛋白質": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                                      "蔬菜": "bg-purple-500/10 text-purple-400 border-purple-500/20",
-                                      "飲料": "bg-sky-500/10 text-sky-400 border-sky-500/20",
-                                      "點心": "bg-rose-500/10 text-rose-400 border-rose-500/20",
-                                      "其他": "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
-                                    };
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {filteredFoods.map((f, i) => {
+                              const isSelected = selectedLibItems.includes(db.foods.indexOf(f));
+                              const isGrp = isMealGroup(f);
+                              const itemCat = f.category || "其他";
+                              const catColors: Record<string, string> = {
+                                "澱粉": "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                                "蛋白質": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+                                "蔬菜": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                                "點心": "bg-purple-500/10 text-purple-400 border-purple-500/20",
+                                "飲料": "bg-sky-500/10 text-sky-400 border-sky-500/20",
+                                "水果": "bg-rose-500/10 text-rose-400 border-rose-500/20",
+                                "其他": "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+                              };
 
-                                    return (
+                              return (
                                       <SwipeToDelete 
-                                        key={f.id || realIdx} 
-                                        onDelete={() => deleteFoodLibraryItem(realIdx)}
-                                        onEdit={() => openEditFoodLibraryItem(realIdx)}
+                                        key={f.id || db.foods.indexOf(f)} 
+                                        onDelete={() => deleteFoodLibraryItem(db.foods.indexOf(f))}
+                                        onEdit={() => openEditFoodLibraryItem(db.foods.indexOf(f))}
                                         bgClass="bg-[#121214]"
                                         roundedClass="rounded-2xl"
                                       >
@@ -3287,9 +3275,9 @@ export default function App() {
                                         checked={isSelected}
                                         onChange={() => {
                                           if (isSelected) {
-                                            setSelectedLibItems(selectedLibItems.filter(id => id !== realIdx));
+                                            setSelectedLibItems(selectedLibItems.filter(id => id !== db.foods.indexOf(f)));
                                           } else {
-                                            setSelectedLibItems([...selectedLibItems, realIdx]);
+                                            setSelectedLibItems([...selectedLibItems, db.foods.indexOf(f)]);
                                           }
                                         }}
                                         className="mt-1 rounded bg-black/50 border-zinc-800 text-indigo-500 focus:ring-0 w-4.5 h-4.5 accent-indigo-500 cursor-pointer"
@@ -3302,7 +3290,7 @@ export default function App() {
                                           </span>
                                         </div>
                                         <span className="text-[10px] text-zinc-400 font-bold block mt-1">
-                                          {"amount"in f && f.amount ? `${f.amount}g/ml · ` : ""}熱量 {f.kcal} kcal
+                                          {"amount"in f && f.amount ? `${f.amount}g/ml · ` : ""}熱量 {getRecordMacros(f).kcal} kcal
                                         </span>
                                       </div>
                                     </div>
@@ -3312,15 +3300,15 @@ export default function App() {
                                   <div className="grid grid-cols-3 gap-2 text-center text-xs border-y border-zinc-850/60 py-2.5 bg-black/50/20 rounded-xl px-1">
                                     <div>
                                       <span className="text-zinc-400 text-[9px] block font-bold">蛋白質</span>
-                                      <span className="font-extrabold text-zinc-300">{f.protein || 0}g</span>
+                                      <span className="font-extrabold text-zinc-300">{getRecordMacros(f).protein || 0}g</span>
                                     </div>
                                     <div>
                                       <span className="text-zinc-400 text-[9px] block font-bold">碳水</span>
-                                      <span className="font-extrabold text-zinc-300">{f.carb || 0}g</span>
+                                      <span className="font-extrabold text-zinc-300">{getRecordMacros(f).carb || 0}g</span>
                                     </div>
                                     <div>
                                       <span className="text-zinc-400 text-[9px] block font-bold">脂肪</span>
-                                      <span className="font-extrabold text-zinc-300">{f.fat || 0}g</span>
+                                      <span className="font-extrabold text-zinc-300">{getRecordMacros(f).fat || 0}g</span>
                                     </div>
                                   </div>
 
@@ -3340,18 +3328,14 @@ export default function App() {
                                     </div>
                                   </div>
                                 </div>
-                                      </SwipeToDelete>
-                                    );
-                                  })}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
+                                                                    </SwipeToDelete>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
 
                   {/*  HEALTHY FOODS PRESETS CORNER */}
                   <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 sm:p-5 shadow-sm">
@@ -3451,7 +3435,10 @@ export default function App() {
                   
                   {/* TDEE Mode selector */}
                   <div className="bg-white/[0.04] border border-white/[0.05] rounded-2xl shadow-xl backdrop-blur-xl p-5 space-y-4">
-                    <h3 className="text-xs font-black tracking-widest text-zinc-400 uppercase">當前計畫目標模式</h3>
+                    <div>
+                      <h3 className="text-xs font-black tracking-widest text-zinc-400 uppercase">當前計畫目標模式</h3>
+                      <p className="text-[10px] text-zinc-500 font-bold mt-1">變更目標與參數不會影響您過去的歷史紀錄，請放心調整。</p>
+                    </div>
                     <div className="grid grid-cols-3 gap-2">
                       {["減脂", "增肌", "維持"].map((m) => (
                         <button
@@ -3627,6 +3614,22 @@ export default function App() {
 
                       <div className="flex justify-between items-center mt-2 border-t border-white/5 pt-4">
                         <div className="flex flex-col">
+                          <span className="text-emerald-400 font-bold">啟用斷食追蹤：</span>
+                          <span className="text-[10px] text-zinc-500">在首頁顯示計時器，輔助168等間歇性斷食法</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={settings.enableFasting || false}
+                            onChange={(e) => handleUpdateSettings({ enableFasting: e.target.checked })}
+                          />
+                          <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex justify-between items-center mt-2 border-t border-white/5 pt-4">
+                        <div className="flex flex-col">
                           <span className="text-emerald-400 font-bold">嚴格完美達標模式：</span>
                           <span className="text-[10px] text-zinc-500">勾選後，日曆上的「連續完美達標」將要求當日也必須達成斷食目標</span>
                         </div>
@@ -3764,14 +3767,20 @@ export default function App() {
                         <p className="text-[10px] text-zinc-500 leading-relaxed">
                           設定個人金鑰後將解鎖「AI 專屬教練」與「內建 AI 影像與文字餐點辨識」功能。金鑰僅安全儲存於您目前的瀏覽器中。
                         </p>
-                        <div className="flex flex-col gap-1.5 pt-1">
+                        <div className="flex gap-1.5 pt-1">
                           <input 
                             type="password"
-                            className="bg-black/50 border border-zinc-850 rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-xs w-full"
+                            className="bg-black/50 border border-zinc-850 rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-xs flex-1"
                             placeholder="自訂 Gemini API Key (選填)"
                             value={settings.geminiApiKey || ""}
                             onChange={(e) => handleUpdateSettings({ geminiApiKey: e.target.value })}
                           />
+                          <button
+                            onClick={() => showToast("API 金鑰已安全儲存於您的裝置！", "success")}
+                            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3 rounded-lg text-xs font-bold transition-colors whitespace-nowrap"
+                          >
+                            確認
+                          </button>
                         </div>
                       </div>
 
@@ -3848,7 +3857,7 @@ export default function App() {
                                   加入<strong className="text-zinc-100 font-extrabold">「開啟 URL」動作</strong>，將對象設為前一步的 URL 動作結果。
                                 </div>
                                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-[10px] text-amber-400 mt-1">
-                                  <span className="font-bold block mb-0.5">⚠️ 關鍵提醒：</span>
+                                  <span className="font-bold block mb-0.5">關鍵提醒：</span>
                                   本系統為離線優先設計，數據保存在 <strong className="text-amber-300 font-extrabold">Safari 瀏覽器</strong>中。捷徑在背景執行時，最後一步「開啟 URL」會<strong className="text-amber-300 font-extrabold">自動啟動 Safari 瀏覽器</strong>，開啟網頁的瞬間即會將健康數據寫入您的本機紀錄中。
                                 </div>
                               </div>
@@ -3888,17 +3897,17 @@ export default function App() {
           <span className="text-[10px] font-bold tracking-wide">歷史</span>
         </button>
 
-        {/* Central AI Add Button */}
+        {/* Central Add Button */}
         <div className="flex-[1] flex justify-center items-center relative -top-5">
           <button
             onClick={() => {
               setAddModalCategory(getCurrentMealCategory());
-              setAddModalTab("ai");
+              setAddModalTab(db.settings.geminiApiKey ? "ai" : "quick");
               setShowAddModal(true);
             }}
             className="w-14 h-14 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] border-4 border-zinc-950 hover:scale-105 transition-transform active:scale-95"
           >
-            <Sparkles className="w-6 h-6" />
+            {db.settings.geminiApiKey ? <Sparkles className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
           </button>
         </div>
 
@@ -4028,7 +4037,7 @@ export default function App() {
                   addModalTab === "ai"? "bg-zinc-800 text-indigo-400 shadow-sm border border-zinc-700/50": "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800/30"
                 }`}
               >
-                AI 影像辨識
+                {db.settings.geminiApiKey ? "AI 影像辨識" : "AI 輔助"}
               </button>
             </div>
 
@@ -4068,9 +4077,7 @@ export default function App() {
                       db.foods
                         .filter((f) => f.name.toLowerCase().includes(quickSearchQuery.toLowerCase()))
                         .map((f, idx) => {
-                          const itemKcal = "type"in f && f.type === "group"
-                            ? f.items.reduce((s, sub) => s + (sub.kcal || 0), 0)
-                            : (f.kcal || 0);
+                          const itemKcal = getRecordMacros(f).kcal;
 
                           return (
                             <div 
@@ -4084,7 +4091,7 @@ export default function App() {
                               <div>
                                 <span className="text-xs font-bold text-zinc-300 block">{"type"in f && f.type === "group"? "": ""}{f.name}</span>
                                 <span className="text-[10px] text-zinc-400 block mt-0.5">
-                                  蛋白 {f.protein}g · 碳水 {f.carb}g · 脂肪 {f.fat}g
+                                  蛋白 {getRecordMacros(f).protein}g · 碳水 {getRecordMacros(f).carb}g · 脂肪 {getRecordMacros(f).fat}g
                                 </span>
                               </div>
                               <span className="text-xs font-black text-indigo-400 pr-1">{itemKcal} kcal</span>
