@@ -89,6 +89,7 @@ Before delivering code, strictly verify:
 ## 3. Code Generation (程式碼生成)
 - Prefer boring, proven solutions over complex, "clever" ones.
 - Only modify the exact necessary parts.
+- **Vite SPA Browser Compatibility:** 當在純前端 (Vite SPA) 環境使用像是 `@google/genai` 等原先設計給 Node 用的套件時，必須確保在 `vite.config.ts` 的 `define` 中定義 `'process.env': {}`，以避免在手機端、Vercel 部署或本地瀏覽器執行時因找不到 `process` 而產生 `process is not defined` 的白畫面運行時錯誤。
 
 ## 4. Error Handling (錯誤處理)
 - Think about edge cases and add defensive programming.
