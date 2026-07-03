@@ -44,7 +44,7 @@ export const FOOD_PRESETS: MealItem[] = [
 
 // 智能判定未分類食物的分類歸屬，提升舊資料與手動新增體驗
 export const detectCategory = (item: MealRecord): string => {
-  if ("type"in item && item.type === "group") {
+  if ("type" in item && item.type === "group") {
     return (item as MealGroup).category || "其他";
   }
   const f = item as MealItem;
@@ -88,6 +88,14 @@ export const detectCategory = (item: MealRecord): string => {
   ) return "點心";
   
   return "其他";
+};
+
+export const getCurrentMealCategory = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 11) return "早餐";
+  if (hour < 16) return "午餐";
+  if (hour < 21) return "晚餐";
+  return "點心";
 };
 
 export default function App() {
@@ -2900,10 +2908,10 @@ export default function App() {
                   />
 
                   {/* Weekly Report & Dynamic Goals */}
-                  <WeeklyReport db={db} currentDate={currentDate} />
-
-                  {/* Visual charts wrapper */}
-                  <Charts days={db.days} targets={targets} goalWeight={settings.goalWeight || 52} />
+                  <WeeklyReport db={db} currentDate={currentDate}>
+                    {/* Visual charts wrapper */}
+                    <Charts days={db.days} targets={targets} goalWeight={settings.goalWeight || 52} />
+                  </WeeklyReport>
 
                   {/* Progress Photos Timeline */}
                   <div className="relative group">
@@ -3754,7 +3762,7 @@ export default function App() {
                           1. Gemini AI 智慧剖析
                         </p>
                         <p className="text-[10px] text-zinc-500 leading-relaxed">
-                          提供 AI 影像與文字辨識餐點。預設讀取環境變數，您也可於下方覆寫個人專屬金鑰 (安全儲存於本機)。
+                          設定個人金鑰後將解鎖「AI 專屬教練」與「內建 AI 影像與文字餐點辨識」功能。金鑰僅安全儲存於您目前的瀏覽器中。
                         </p>
                         <div className="flex flex-col gap-1.5 pt-1">
                           <input 
@@ -3863,38 +3871,53 @@ export default function App() {
       <nav className="md:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-zinc-950/90 border-t border-zinc-800/80 backdrop-blur-2xl z-40 flex items-center justify-between p-1.5 pb-[calc(env(safe-area-inset-bottom)+6px)] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <button
           onClick={() => setActiveTab("today")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
-            activeTab === "today"? "bg-zinc-800 text-indigo-400": "text-zinc-500 hover:text-zinc-300"
+          className={`flex-[0.8] flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "today"? "text-indigo-400": "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Flame className="w-[20px] h-[20px]"/>
+          <Flame className={`w-[22px] h-[22px] ${activeTab === "today" ? "fill-indigo-500/20" : ""}`}/>
           <span className="text-[10px] font-bold tracking-wide">今日</span>
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
-            activeTab === "history"? "bg-zinc-800 text-indigo-400": "text-zinc-500 hover:text-zinc-300"
+          className={`flex-[0.8] flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "history"? "text-indigo-400": "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Calendar className="w-[20px] h-[20px]"/>
+          <Calendar className={`w-[22px] h-[22px] ${activeTab === "history" ? "fill-indigo-500/20" : ""}`}/>
           <span className="text-[10px] font-bold tracking-wide">歷史</span>
         </button>
+
+        {/* Central AI Add Button */}
+        <div className="flex-[1] flex justify-center items-center relative -top-5">
+          <button
+            onClick={() => {
+              setAddModalCategory(getCurrentMealCategory());
+              setAddModalTab("ai");
+              setShowAddModal(true);
+            }}
+            className="w-14 h-14 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] border-4 border-zinc-950 hover:scale-105 transition-transform active:scale-95"
+          >
+            <Sparkles className="w-6 h-6" />
+          </button>
+        </div>
+
         <button
           onClick={() => setActiveTab("foods")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
-            activeTab === "foods"? "bg-zinc-800 text-indigo-400": "text-zinc-500 hover:text-zinc-300"
+          className={`flex-[0.8] flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "foods"? "text-indigo-400": "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <Salad className="w-[20px] h-[20px]"/>
-          <span className="text-[10px] font-bold tracking-wide">食物庫</span>
+          <Salad className={`w-[22px] h-[22px] ${activeTab === "foods" ? "fill-indigo-500/20" : ""}`}/>
+          <span className="text-[10px] font-bold tracking-wide">食物</span>
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
-            activeTab === "settings"? "bg-zinc-800 text-indigo-400": "text-zinc-500 hover:text-zinc-300"
+          className={`flex-[0.8] flex flex-col items-center justify-center gap-1 min-h-[56px] rounded-xl transition-all ${
+            activeTab === "settings"? "text-indigo-400": "text-zinc-500 hover:text-zinc-300"
           }`}
         >
-          <SettingsIcon className="w-[20px] h-[20px]"/>
+          <SettingsIcon className={`w-[22px] h-[22px] ${activeTab === "settings" ? "fill-indigo-500/20" : ""}`}/>
           <span className="text-[10px] font-bold tracking-wide">設定</span>
         </button>
       </nav>

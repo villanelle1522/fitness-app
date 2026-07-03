@@ -24,9 +24,10 @@ import {
 interface WeeklyReportProps {
   db: DBState;
   currentDate: string;
+  children?: React.ReactNode;
 }
 
-export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) => {
+export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate, children }) => {
   const [showScientificFastingInfo, setShowScientificFastingInfo] = useState(false);
   const [showPriceTip, setShowPriceTip] = useState(false);
 
@@ -42,6 +43,9 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
     }
 
     let totalKcal = 0;
+    let totalProtein = 0;
+    let totalCarb = 0;
+    let totalFat = 0;
     let daysWithFood = 0;
     let startWeight: number | null = null;
     let endWeight: number | null = null;
@@ -53,8 +57,14 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
         (Object.values(day.meals).flat() as MealRecord[]).forEach((m) => {
           if (isMealGroup(m)) {
             dayKcal += m.items.reduce((sum, item) => sum + (item.kcal || 0), 0);
+            totalProtein += m.items.reduce((sum, item) => sum + (item.protein || 0), 0);
+            totalCarb += m.items.reduce((sum, item) => sum + (item.carb || 0), 0);
+            totalFat += m.items.reduce((sum, item) => sum + (item.fat || 0), 0);
           } else {
             dayKcal += m.kcal || 0;
+            totalProtein += m.protein || 0;
+            totalCarb += m.carb || 0;
+            totalFat += m.fat || 0;
           }
         });
         
@@ -71,6 +81,9 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
     });
 
     const avgKcal = daysWithFood > 0 ? Math.round(totalKcal / daysWithFood) : 0;
+    const avgProtein = daysWithFood > 0 ? Math.round(totalProtein / daysWithFood) : 0;
+    const avgCarb = daysWithFood > 0 ? Math.round(totalCarb / daysWithFood) : 0;
+    const avgFat = daysWithFood > 0 ? Math.round(totalFat / daysWithFood) : 0;
     const weightDiff = (startWeight && endWeight) ? (endWeight - startWeight) : 0;
     
     // 原始目標建議邏輯
@@ -79,6 +92,49 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
     let icon = <Minus className="w-5 h-5 text-zinc-400" />;
 
     const targetKcal = db.settings.targets?.kcal || 1510;
+    const targetProtein = db.settings.targets?.protein || 132;
+    const targetCarb = db.settings.targets?.carb || 151;
+
+    // Macro insight
+    let macroInsight = "";
+    if (daysWithFood >= 3) {
+      if (avgProtein < targetProtein * 0.8) {
+        macroInsight = `⚠️ 蛋白質嚴重不足 (平均 ${avgProtein}g / 目標 ${targetProtein}g)。這會導致肌肉流失並降低基礎代謝率。建議多攝取雞胸肉、雞蛋或豆腐。`;
+      } else if (avgCarb > targetCarb * 1.2) {
+        macroInsight = `⚠️ 碳水化合物攝取過量 (平均 ${avgCarb}g / 目標 ${targetCarb}g)。過多的碳水會影響胰島素阻抗，減緩脂肪燃燒。建議減少澱粉比例。`;
+      } else if (avgProtein >= targetProtein * 0.9) {
+        macroInsight = `🌟 蛋白質攝取極佳！維持高蛋白飲食有助於增肌減脂，讓您在減重過程保持良好代謝。`;
+      } else {
+        macroInsight = `✅ 營養素攝取穩定，請繼續保持目前的飲食結構。`;
+      }
+    } else {
+      macroInsight = `記錄天數不足，請持續記錄以獲得營養素偏差分析。`;
+    }
+
+    // Predictive forecasting
+    const { sex, weight: currentW, height, age, activity, goalWeight } = db.settings;
+    let bmr = 10 * (endWeight || currentW || 60) + 6.25 * (height || 160) - 5 * (age || 30);
+    bmr += sex === '男' ? 5 : -161;
+    const tdee = Math.round(bmr * (activity || 1.2));
+
+    const deficitPerDay = tdee - avgKcal;
+    let predictionInsight = "";
+
+    if (daysWithFood >= 4 && deficitPerDay > 100) {
+      const weeklyLoss = (deficitPerDay * 7) / 7700;
+      const weightToLose = (endWeight || currentW || 60) - (goalWeight || 50);
+      
+      if (weightToLose > 0) {
+        const predictedWeeks = Math.ceil(weightToLose / weeklyLoss);
+        predictionInsight = `🔮 達標預測：過去一週平均每天產生 ${deficitPerDay} kcal 熱量赤字。繼續保持，預計約 ${predictedWeeks} 週後達到目標體重 (${goalWeight}kg)！`;
+      } else {
+        predictionInsight = `🎉 您已達標！建議切換為「維持體重」模式，將熱量調整至 ${tdee} kcal。`;
+      }
+    } else if (daysWithFood >= 4 && deficitPerDay <= 0) {
+      predictionInsight = `⚖️ 狀態預測：您目前的熱量攝取與消耗達到平衡 (無赤字)。若希望減重，請增加運動量或稍微減少每日攝取。`;
+    } else {
+      predictionInsight = "📊 記錄天數不足或未產生赤字，AI 尚無法準確預測達標時間。";
+    }
 
     if (daysWithFood >= 4 && startWeight && endWeight) {
       if (weightDiff > 0.3) {
@@ -290,6 +346,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
       targetAdjustment,
       icon,
       targetKcal,
+      macroInsight,
+      predictionInsight,
       
       // 斷食相關
       deepFastCount: deepFastDiffs.length,
@@ -313,9 +371,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
     };
   }, [db, currentDate]);
 
-  return (
-    <div className="space-y-6">
-      
+  const section1General = (
+    <>
       {/* ────────────────── SECTION 1: AI GENERAL WEEKLY REPORT ────────────────── */}
       <div className="bg-white/[0.04] border border-white/[0.05] rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col gap-5">
         <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
@@ -339,9 +396,23 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
               {report.suggestion}
             </p>
           </div>
+
+          {/* New Macro Insight Box */}
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 mt-2">
+            <p className="text-sm text-amber-200 font-bold leading-relaxed">
+              {report.macroInsight}
+            </p>
+          </div>
+
+          {/* New Prediction Insight Box */}
+          <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-4 mt-2">
+            <p className="text-sm text-purple-200 font-bold leading-relaxed">
+              {report.predictionInsight}
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 relative z-10">
+        <div className="grid grid-cols-2 gap-3 relative z-10 mt-2">
           <div className="bg-black/30 rounded-2xl p-4 border border-zinc-800/80">
             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">近 7 天平均攝取</p>
             <div className="flex items-end gap-1">
@@ -375,7 +446,11 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
           </div>
         )}
       </div>
+    </>
+  );
 
+  const section2Fasting = (
+    <>
       {/* ────────────────── SECTION 2: FASTING VS WEIGHT LOSS CORRELATION ────────────────── */}
       <div className="bg-white/[0.04] border border-white/[0.05] rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col gap-4">
         <div className="flex justify-between items-start">
@@ -521,7 +596,11 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
           </div>
         )}
       </div>
+    </>
+  );
 
+  const section3Expense = (
+    <>
       {/* ────────────────── SECTION 3: DIET EXPENSE & CP VALUE ANALYTICS ────────────────── */}
       <div className="bg-white/[0.04] border border-white/[0.05] rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col gap-4">
         <div className="flex justify-between items-start flex-wrap gap-2">
@@ -723,7 +802,30 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ db, currentDate }) =
           </div>
         )}
       </div>
+    </>
+  );
 
+  const shouldPrioritizeOtherSections = report.hasAnyFastingData || report.hasPriceLogs;
+
+  return (
+    <div className="space-y-6">
+      {section1General}
+
+      {shouldPrioritizeOtherSections && (
+        <>
+          {section2Fasting}
+          {section3Expense}
+        </>
+      )}
+
+      {children}
+
+      {!shouldPrioritizeOtherSections && (
+        <>
+          {section2Fasting}
+          {section3Expense}
+        </>
+      )}
     </div>
   );
 };

@@ -11,7 +11,7 @@ interface AIFoodAnalyzerProps {
 }
 
 export const AIFoodAnalyzer: React.FC<AIFoodAnalyzerProps> = ({ onAddParsedMeals, mealCategory, customApiKey, customFoods = [] }) => {
-  const [activeTab, setActiveTab] = useState<"direct" | "paste">("direct");
+  const [activeTab, setActiveTab] = useState<"direct" | "paste">(customApiKey ? "direct" : "paste");
   const [inputText, setInputText] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [copiedPrompt, setCopiedPrompt] = useState(false);
@@ -425,17 +425,19 @@ Provide the response strictly as a JSON object matching the requested schema con
 
       {/* Tab Selection */}
       <div className="flex border-b border-zinc-800/80 mb-4 text-xs font-bold gap-1">
-        <button
-          onClick={() => setActiveTab("direct")}
-          className={`pb-2 px-3 relative transition-all cursor-pointer ${
-            activeTab === "direct" ? "text-indigo-400 font-extrabold" : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          <span> App 內建 AI 智慧直析</span>
-          {activeTab === "direct" && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
-          )}
-        </button>
+        {customApiKey && (
+          <button
+            onClick={() => setActiveTab("direct")}
+            className={`pb-2 px-3 relative transition-all cursor-pointer ${
+              activeTab === "direct" ? "text-indigo-400 font-extrabold" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <span> App 內建 AI 智慧直析</span>
+            {activeTab === "direct" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
+            )}
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("paste")}
           className={`pb-2 px-3 relative transition-all cursor-pointer ${

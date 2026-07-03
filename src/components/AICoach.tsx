@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Sparkles, Send, X, Bot, User, TrendingUp, Droplet, Flame, Zap, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Settings } from "../types";
+import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: "user" | "assistant";
@@ -70,44 +71,70 @@ export const AICoach: React.FC<AICoachProps> = ({
     if (!text.trim() || isLoading) return;
 
     const userMsg: Message = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    const currentMessages = [...messages, userMsg];
+    setMessages(currentMessages);
     setInputValue("");
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/coach-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, userMsg],
-          settings,
-          todayStats,
-          weightTrend,
-          customApiKey: settings.geminiApiKey,
-        }),
+      if (!settings.geminiApiKey) {
+        throw new Error("請先在「設定」中填寫您的 Gemini API Key 才能與教練對話！");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: settings.geminiApiKey });
+
+      const systemInstruction = `
+你是一位專業、友善、充滿能量的 AI 營養與健身教練。
+你的任務是根據使用者的飲食數據與目標，提供精準、科學、且易於執行的建議。
+
+【使用者狀態】
+- 性別：${settings.gender}
+- 年齡：${settings.age}
+- 身高：${settings.height} cm
+- 目前體重：${settings.weight} kg
+- 目標體重：${settings.goalWeight} kg
+- 每日活動度：${settings.activityLevel}
+
+【今日已攝取】
+- 熱量：${todayStats.kcal} kcal
+- 蛋白質：${todayStats.protein} g
+- 碳水：${todayStats.carb} g
+- 脂肪：${todayStats.fat} g
+- 水分：${todayStats.water} ml
+
+【近期體重趨勢】
+${weightTrend !== null ? `較上次紀錄 ${weightTrend > 0 ? "+" : ""}${weightTrend} kg` : "無足夠數據"}
+
+請用繁體中文回答，語氣溫暖鼓勵。若使用者提問，請優先針對提問給予精簡扼要的解答。
+回覆盡量簡短有力，適合手機螢幕閱讀。
+`;
+
+      const formattedMessages = currentMessages.map(m => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }]
+      }));
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: formattedMessages,
+        config: {
+          systemInstruction: systemInstruction,
+          temperature: 0.7,
+        }
       });
 
-      const data = await response.json();
-      if (response.ok && data.result) {
-        setMessages((prev) => [...prev, { role: "assistant", content: data.result }]);
+      if (response.text) {
+        setMessages((prev) => [...prev, { role: "assistant", content: response.text }]);
       } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: `⚠️ 出現了些許錯誤，無法與 AI 教練取得聯繫。
-請確認「設定」分頁中的 Gemini API Key 是否輸入正確。
-錯誤詳情：${data.error || "連線異常"}`,
-          },
-        ]);
+        throw new Error("無法產生回應。");
       }
+
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `⚠️ 連線失敗！請檢查您的網路狀態。
-錯誤訊息：${err.message || "Unknown error"}`,
+          content: `⚠️ ${err.message || "連線失敗！請檢查您的網路狀態。"}`,
         },
       ]);
     } finally {
