@@ -17,6 +17,9 @@ import { WeeklyReport } from "./components/WeeklyReport";
 import { SwipeToDelete } from "./components/SwipeToDelete";
 import { AICoach } from "./components/AICoach";
 import { FastingTracker } from "./components/FastingTracker";
+import { FastingFloatingWidget } from "./components/FastingFloatingWidget";
+import { StoreMealPlanner } from "./components/StoreMealPlanner";
+import { STORE_FOODS_DATABASE } from "./data/storeFoods";
 import localforage from "localforage";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -328,7 +331,22 @@ export default function App() {
   const [librarySortBy, setLibrarySortBy] = useState<string>("recent");
   
   const filteredFoods = useMemo(() => {
-    return db.foods
+    const storeFoodsMapped = librarySearchQuery.trim() ? STORE_FOODS_DATABASE.map((f, i) => ({
+      id: -1000 - i, // negative ID for store foods
+      name: `[${f.store}] ${f.name}`,
+      kcal: f.kcal,
+      protein: f.protein,
+      carb: f.carb,
+      fat: f.fat,
+      sodium: f.sodium,
+      price: f.price,
+      fiber: f.category === "蔬菜" ? 2.5 : 0,
+      sugar: f.category === "飲料" ? 2.0 : 0,
+      category: f.category
+    })) : [];
+    const combinedFoods = [...db.foods, ...storeFoodsMapped];
+
+    return combinedFoods
       .filter((f) => {
         const matchesSearch = f.name.toLowerCase().includes(librarySearchQuery.toLowerCase());
         if (!matchesSearch) return false;
@@ -359,7 +377,7 @@ export default function App() {
         if (librarySortBy === "kcalDesc") return getKcal(b) - getKcal(a);
         if (librarySortBy === "proteinDesc") return getProtein(b) - getProtein(a);
         if (librarySortBy === "fiberDesc") return getFiber(b) - getFiber(a);
-        return db.foods.indexOf(b) - db.foods.indexOf(a); // recent
+        return combinedFoods.indexOf(b) - combinedFoods.indexOf(a); // recent
       });
   }, [db.foods, librarySearchQuery, libraryFilterCategory, librarySortBy]);
 
@@ -607,29 +625,51 @@ export default function App() {
       meals: updatedMeals,
     };
 
-    // If check save to library
+    // Auto-save to food library if not already present, avoiding duplicates
     let updatedFoods = [...db.foods];
-    if (saveToLib) {
-      if (groupTitle.trim()) {
-        const cleanGroup: MealGroup = {
-          type: "group",
-          id: dateNow + 500,
-          name: groupTitle.trim(),
-          items: items.map((it, i) => {
-            const { id, ...rest } = it;
-            return { ...rest, id: dateNow + 600 + i };
-          }),
-        };
-        updatedFoods.push(cleanGroup);
-      } else {
-        items.forEach((it) => {
-          const { id, ...rest } = it;
+    const checkAndAdd = (nameStr: string, foodRecord: MealRecord) => {
+      if (!nameStr || nameStr.startsWith("快速補充")) return;
+      const exists = updatedFoods.some(
+        (f) => f.name.trim().toLowerCase() === nameStr.trim().toLowerCase()
+      );
+      if (!exists) {
+        if ("type" in foodRecord && foodRecord.type === "group") {
+          const cleanGroup: MealGroup = {
+            type: "group",
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            name: foodRecord.name,
+            items: foodRecord.items.map((it, i) => {
+              const { id, ...rest } = it;
+              return { ...rest, id: Date.now() + 100 + i };
+            }),
+            price: foodRecord.price,
+            category: foodRecord.category,
+          };
+          updatedFoods.push(cleanGroup);
+        } else {
+          const singleItem = foodRecord as MealItem;
+          const { id, time, ...rest } = singleItem;
           updatedFoods.push({
             ...rest,
             id: Date.now() + Math.random(),
           });
-        });
+        }
       }
+    };
+
+    if (groupTitle.trim()) {
+      const groupRec: MealGroup = {
+        type: "group",
+        id: dateNow,
+        name: groupTitle.trim(),
+        items: items.map((it, i) => ({ ...it, id: dateNow + 100 + i })),
+        price: items.reduce((s, u) => s + (u.price || 0), 0) || undefined,
+      };
+      checkAndAdd(groupTitle.trim(), groupRec);
+    } else {
+      items.forEach((it) => {
+        checkAndAdd(it.name, it);
+      });
     }
 
     saveDb({
@@ -1512,7 +1552,7 @@ export default function App() {
       }
     } else {
       let cloned: MealRecord;
-      if ("type"in record && record.type === "group") {
+      if ("type" in record && record.type === "group") {
         cloned = {
           ...record,
           id: dateNow,
@@ -1533,6 +1573,33 @@ export default function App() {
       ];
     }
 
+    // Auto save to custom library if not already present
+    let updatedFoods = [...db.foods];
+    const existsInLib = updatedFoods.some(
+      (f) => f.name.trim().toLowerCase() === record.name.trim().toLowerCase()
+    );
+    if (!existsInLib && !record.name.startsWith("快速補充")) {
+      if ("type" in record && record.type === "group") {
+        updatedFoods.push({
+          type: "group",
+          id: Date.now() + 500,
+          name: record.name,
+          items: record.items.map((sub, i) => {
+            const { id, ...rest } = sub;
+            return { ...rest, id: Date.now() + 600 + i };
+          }),
+          category: record.category,
+          price: record.price,
+        });
+      } else {
+        const { id, time, ...rest } = record as MealItem;
+        updatedFoods.push({
+          ...rest,
+          id: Date.now() + Math.random(),
+        });
+      }
+    }
+
     saveDb({
       ...db,
       days: {
@@ -1542,6 +1609,7 @@ export default function App() {
           meals: updatedMeals,
         },
       },
+      foods: updatedFoods,
     });
     setExpandedMeals(prev => ({ ...prev, [category]: true }));
     setAddModalTargetGroupIndex(undefined); // Reset
@@ -2912,7 +2980,7 @@ export default function App() {
                   />
 
                   {/* Weekly Report & Dynamic Goals */}
-                  <WeeklyReport db={db} currentDate={currentDate}>
+                  <WeeklyReport db={db} currentDate={currentDate} showToast={showToast}>
                     {/* Visual charts wrapper */}
                     <Charts days={db.days} targets={targets} goalWeight={settings.goalWeight || 52} />
                   </WeeklyReport>
@@ -3109,6 +3177,9 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* 🏪 Taiwan Convenience Store Smart Meal Planner/Recommender Section */}
+                  <StoreMealPlanner db={db} updateDb={setDb} showToast={showToast} currentDate={currentDate} />
 
                   {/* Header Search & Direct adding manual trigger */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
@@ -3994,6 +4065,9 @@ export default function App() {
         );
       })()}
 
+      {/* Lockscreen Fasting Stage Floating Widget */}
+      <FastingFloatingWidget db={db} updateDb={setDb} showToast={showToast} />
+
       {/* ────────────────── MODAL: ADD FOOD ────────────────── */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end items-center md:justify-center">
@@ -4069,14 +4143,33 @@ export default function App() {
                   />
 
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                    {db.foods.length === 0 ? (
-                      <div className="text-center text-zinc-400 text-xs py-10">
-                        食物庫無品項，請手動新增或使用 AI 辨識自動帶入。
-                      </div>
-                    ) : (
-                      db.foods
-                        .filter((f) => f.name.toLowerCase().includes(quickSearchQuery.toLowerCase()))
-                        .map((f, idx) => {
+                    {
+                      (() => {
+                        const storeFoodsMapped = quickSearchQuery.trim() ? STORE_FOODS_DATABASE.map((f, i) => ({
+                          id: -1000 - i,
+                          name: `[${f.store}] ${f.name}`,
+                          kcal: f.kcal,
+                          protein: f.protein,
+                          carb: f.carb,
+                          fat: f.fat,
+                          sodium: f.sodium,
+                          price: f.price,
+                          fiber: f.category === "蔬菜" ? 2.5 : 0,
+                          sugar: f.category === "飲料" ? 2.0 : 0,
+                          category: f.category
+                        })) : [];
+                        const combinedFoods = [...db.foods, ...storeFoodsMapped];
+                        const filtered = combinedFoods.filter((f) => f.name.toLowerCase().includes(quickSearchQuery.toLowerCase()));
+                        
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="text-center text-zinc-400 text-xs py-10">
+                              無相符品項。您可輸入「7-11」或「全家」搜尋超商食物，或使用 AI 辨識。
+                            </div>
+                          );
+                        }
+                        
+                        return filtered.map((f, idx) => {
                           const itemKcal = getRecordMacros(f).kcal;
 
                           return (
@@ -4097,8 +4190,9 @@ export default function App() {
                               <span className="text-xs font-black text-indigo-400 pr-1">{itemKcal} kcal</span>
                             </div>
                           );
-                        })
-                    )}
+                        });
+                      })()
+                    }
                   </div>
                 </div>
               )}

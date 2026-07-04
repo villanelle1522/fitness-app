@@ -28,6 +28,54 @@ interface AICoachProps {
   weightTrend: number | null;
 }
 
+const TypewriterText: React.FC<{
+  content: string;
+  isLatest: boolean;
+  onComplete?: () => void;
+}> = ({ content, isLatest, onComplete }) => {
+  const [displayedText, setDisplayedText] = useState(isLatest ? "" : content);
+
+  useEffect(() => {
+    if (!isLatest) {
+      setDisplayedText(content);
+      return;
+    }
+
+    setDisplayedText("");
+    let currentIdx = 0;
+    const speed = 10; // snappy typing increments
+    const chars = Array.from(content);
+    
+    const interval = setInterval(() => {
+      if (currentIdx >= chars.length) {
+        clearInterval(interval);
+        if (onComplete) onComplete();
+        return;
+      }
+      const increment = Math.min(2, chars.length - currentIdx);
+      setDisplayedText(prev => prev + chars.slice(currentIdx, currentIdx + increment).join(""));
+      currentIdx += increment;
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [content, isLatest]);
+
+  useEffect(() => {
+    if (isLatest) {
+      const scrollContainer = document.getElementById("chat-messages-container");
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [displayedText, isLatest]);
+
+  return (
+    <div className="markdown-body">
+      <Markdown>{displayedText}</Markdown>
+    </div>
+  );
+};
+
 export const AICoach: React.FC<AICoachProps> = ({
   isOpen,
   onClose,
@@ -205,14 +253,14 @@ ${weightTrend !== null ? `較上次紀錄 ${weightTrend > 0 ? "+" : ""}${weightT
         </div>
 
         {/* Message Panel */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">
+        <div id="chat-messages-container" className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">
           <AnimatePresence initial={false}>
             {messages.map((m, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, scale: 0.93, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ type: "spring", damping: 18, stiffness: 220 }}
                 className={`flex gap-3 max-w-[88%] ${
                   m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
                 }`}
@@ -239,9 +287,10 @@ ${weightTrend !== null ? `較上次紀錄 ${weightTrend > 0 ? "+" : ""}${weightT
                   {m.role === "user" ? (
                     m.content
                   ) : (
-                    <div className="markdown-body">
-                      <Markdown>{m.content}</Markdown>
-                    </div>
+                    <TypewriterText 
+                      content={m.content} 
+                      isLatest={idx === messages.length - 1} 
+                    />
                   )}
                 </div>
               </motion.div>
@@ -249,8 +298,9 @@ ${weightTrend !== null ? `較上次紀錄 ${weightTrend > 0 ? "+" : ""}${weightT
 
             {isLoading && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, scale: 0.93, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ type: "spring", damping: 18, stiffness: 220 }}
                 className="flex gap-3 max-w-[80%] mr-auto"
               >
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-zinc-850 border border-zinc-800 text-zinc-400 shrink-0">

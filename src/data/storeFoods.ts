@@ -1,0 +1,339 @@
+export interface StoreFoodItem {
+  id: string;
+  store: "7-11" | "全家";
+  name: string;
+  category: "澱粉" | "蛋白質" | "蔬菜" | "飲料" | "其他";
+  kcal: number;
+  protein: number;
+  carb: number;
+  fat: number;
+  sodium: number;
+  price: number;
+}
+
+export const STORE_FOODS_DATABASE: StoreFoodItem[] = [
+  {
+    id: "711_tea_egg",
+    store: "7-11",
+    name: "茶葉蛋",
+    category: "蛋白質",
+    kcal: 75,
+    protein: 7.0,
+    carb: 1.0,
+    fat: 5.0,
+    sodium: 180,
+    price: 13
+  },
+  {
+    id: "711_shian_onsen_egg",
+    store: "7-11",
+    name: "石安牧場溫泉蛋 (2入)",
+    category: "蛋白質",
+    kcal: 134,
+    protein: 13.6,
+    carb: 1.2,
+    fat: 8.4,
+    sodium: 220,
+    price: 46
+  },
+  {
+    id: "711_chicken_breast_herb",
+    store: "7-11",
+    name: "大成義式香草雞胸肉",
+    category: "蛋白質",
+    kcal: 115,
+    protein: 22.0,
+    carb: 1.5,
+    fat: 2.5,
+    sodium: 340,
+    price: 59
+  },
+  {
+    id: "711_chicken_breast_smoked",
+    store: "7-11",
+    name: "21風味館桃木燻雞胸肉",
+    category: "蛋白質",
+    kcal: 110,
+    protein: 21.5,
+    carb: 1.0,
+    fat: 2.2,
+    sodium: 310,
+    price: 59
+  },
+  {
+    id: "711_tuna_onigiri",
+    store: "7-11",
+    name: "鮪魚夾心飯糰",
+    category: "澱粉",
+    kcal: 215,
+    protein: 4.5,
+    carb: 42.0,
+    fat: 3.0,
+    sodium: 320,
+    price: 30
+  },
+  {
+    id: "711_pork_floss_onigiri",
+    store: "7-11",
+    name: "肉鬆夾心飯糰",
+    category: "澱粉",
+    kcal: 230,
+    protein: 4.5,
+    carb: 43.0,
+    fat: 4.0,
+    sodium: 290,
+    price: 28
+  },
+  {
+    id: "711_chicken_sandwich",
+    store: "7-11",
+    name: "紐奧良風味烤雞三明治",
+    category: "澱粉",
+    kcal: 295,
+    protein: 12.0,
+    carb: 35.0,
+    fat: 11.0,
+    sodium: 540,
+    price: 49
+  },
+  {
+    id: "711_sunshine_soy_milk",
+    store: "7-11",
+    name: "統一陽光高纖無糖豆漿",
+    category: "飲料",
+    kcal: 146,
+    protein: 13.6,
+    carb: 7.8,
+    fat: 6.4,
+    sodium: 110,
+    price: 20
+  },
+  {
+    id: "711_black_soy_milk",
+    store: "7-11",
+    name: "統一陽光無糖黑豆漿",
+    category: "飲料",
+    kcal: 145,
+    protein: 12.2,
+    carb: 9.0,
+    fat: 6.3,
+    sodium: 120,
+    price: 25
+  },
+  {
+    id: "711_mizuho_milk_small",
+    store: "7-11",
+    name: "瑞穗鮮乳 (290ml)",
+    category: "飲料",
+    kcal: 180,
+    protein: 9.0,
+    carb: 14.0,
+    fat: 10.0,
+    sodium: 105,
+    price: 35
+  },
+  {
+    id: "711_vege_salad",
+    store: "7-11",
+    name: "繽紛鮮蔬沙拉",
+    category: "蔬菜",
+    kcal: 56,
+    protein: 1.2,
+    carb: 11.2,
+    fat: 0.4,
+    sodium: 45,
+    price: 45
+  },
+  {
+    id: "711_banana",
+    store: "7-11",
+    name: "香蕉 (單根)",
+    category: "澱粉",
+    kcal: 90,
+    protein: 1.1,
+    carb: 22.0,
+    fat: 0.2,
+    sodium: 1,
+    price: 20
+  },
+  {
+    id: "711_beef_curry_rice",
+    store: "7-11",
+    name: "佛蒙特咖哩牛肉飯 (主餐)",
+    category: "澱粉",
+    kcal: 680,
+    protein: 18.0,
+    carb: 95.0,
+    fat: 24.0,
+    sodium: 920,
+    price: 89
+  },
+  {
+    id: "711_chilli_chicken_pasta",
+    store: "7-11",
+    name: "香辣太監雞義大利麵 (主餐)",
+    category: "澱粉",
+    kcal: 550,
+    protein: 23.0,
+    carb: 78.0,
+    fat: 15.0,
+    sodium: 1120,
+    price: 99
+  },
+  {
+    id: "fm_tea_egg",
+    store: "全家",
+    name: "茶葉蛋",
+    category: "蛋白質",
+    kcal: 75,
+    protein: 7.0,
+    carb: 1.0,
+    fat: 5.0,
+    sodium: 180,
+    price: 13
+  },
+  {
+    id: "fm_onsen_egg",
+    store: "全家",
+    name: "溫泉蛋 (2入)",
+    category: "蛋白質",
+    kcal: 130,
+    protein: 13.0,
+    carb: 1.0,
+    fat: 8.0,
+    sodium: 200,
+    price: 46
+  },
+  {
+    id: "fm_chicken_breast_basil",
+    store: "全家",
+    name: "大成舒迷香草雞胸肉",
+    category: "蛋白質",
+    kcal: 110,
+    protein: 21.8,
+    carb: 1.2,
+    fat: 2.0,
+    sodium: 320,
+    price: 59
+  },
+  {
+    id: "fm_grilled_chicken_thigh",
+    store: "全家",
+    name: "烤多汁雞腿排",
+    category: "蛋白質",
+    kcal: 210,
+    protein: 16.0,
+    carb: 5.0,
+    fat: 14.0,
+    sodium: 420,
+    price: 49
+  },
+  {
+    id: "fm_gym_lunchbox",
+    store: "全家",
+    name: "健身G肉餐盒 (健康便當)",
+    category: "澱粉",
+    kcal: 490,
+    protein: 28.0,
+    carb: 65.0,
+    fat: 11.0,
+    sodium: 680,
+    price: 95
+  },
+  {
+    id: "fm_soy_milk",
+    store: "全家",
+    name: "光泉高纖無糖鮮豆漿",
+    category: "飲料",
+    kcal: 151,
+    protein: 14.3,
+    carb: 7.5,
+    fat: 6.8,
+    sodium: 105,
+    price: 20
+  },
+  {
+    id: "fm_black_soy_milk",
+    store: "全家",
+    name: "義美無糖黑豆奶",
+    category: "飲料",
+    kcal: 140,
+    protein: 11.5,
+    carb: 8.5,
+    fat: 6.0,
+    sodium: 115,
+    price: 25
+  },
+  {
+    id: "fm_sweet_potato",
+    store: "全家",
+    name: "夯番薯 (約150g)",
+    category: "澱粉",
+    kcal: 160,
+    protein: 2.0,
+    carb: 38.0,
+    fat: 0.3,
+    sodium: 35,
+    price: 35
+  },
+  {
+    id: "fm_tango_egg_onigiri",
+    store: "全家",
+    name: "溏心蛋飯糰",
+    category: "澱粉",
+    kcal: 195,
+    protein: 5.5,
+    carb: 38.0,
+    fat: 2.2,
+    sodium: 330,
+    price: 35
+  },
+  {
+    id: "fm_beef_onigiri",
+    store: "全家",
+    name: "壽喜燒牛肉飯糰",
+    category: "澱粉",
+    kcal: 210,
+    protein: 5.0,
+    carb: 42.0,
+    fat: 2.5,
+    sodium: 310,
+    price: 35
+  },
+  {
+    id: "fm_shroom_chicken_onigiri",
+    store: "全家",
+    name: "大口法式蕈菇起司雞排飯糰",
+    category: "澱粉",
+    kcal: 410,
+    protein: 13.0,
+    carb: 62.0,
+    fat: 12.0,
+    sodium: 720,
+    price: 62
+  },
+  {
+    id: "fm_green_vege_bowl",
+    store: "全家",
+    name: "媽媽煮藝-小滷青蔬",
+    category: "蔬菜",
+    kcal: 88,
+    protein: 3.5,
+    carb: 12.0,
+    fat: 2.5,
+    sodium: 480,
+    price: 45
+  },
+  {
+    id: "fm_tea_sugarfree",
+    store: "全家",
+    name: "四季春青茶 (無糖瓶裝)",
+    category: "飲料",
+    kcal: 0,
+    protein: 0.0,
+    carb: 0.0,
+    fat: 0.0,
+    sodium: 15,
+    price: 30
+  }
+];
