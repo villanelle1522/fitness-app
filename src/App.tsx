@@ -24,7 +24,7 @@ import localforage from "localforage";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Plus, Calendar, Settings as SettingsIcon, Salad, PlusCircle, Trash2, Copy,
-  Flame, Droplet, Dumbbell, Scale, ChevronRight, Edit2, Download, Upload, 
+  Flame, Droplet, Dumbbell, Scale, ChevronLeft, ChevronRight, Edit2, Download, Upload, 
   Link2, Trash, Sliders, Check, HelpCircle, X, ChevronDown, Sparkles, Zap,
   Crown, ShieldCheck, Target, Camera, Share2, RotateCcw
 } from "lucide-react";
@@ -116,6 +116,9 @@ export default function App() {
   // Water micro-interaction states
   const [waterBubbles, setWaterBubbles] = useState<{ id: number; left: number; size: number; delay: number; duration: number }[]>([]);
   const [waterRipple, setWaterRipple] = useState(false);
+
+  // Particle fly micro-interaction state
+  const [flyParticles, setFlyParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([]);
 
   // Mobile Swipe Gesture State & Handlers
   const touchStartX = React.useRef<number | null>(null);
@@ -348,7 +351,13 @@ export default function App() {
 
     return combinedFoods
       .filter((f) => {
-        const matchesSearch = f.name.toLowerCase().includes(librarySearchQuery.toLowerCase());
+        const queryTokens = librarySearchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        const matchesSearch = queryTokens.length === 0 || queryTokens.every(token => {
+          const nameLower = f.name.toLowerCase();
+          if (nameLower.includes(token)) return true;
+          if (token === "超商" && (nameLower.includes("7-11") || nameLower.includes("全家"))) return true;
+          return false;
+        });
         if (!matchesSearch) return false;
         if (libraryFilterCategory === "全部") return true;
         return detectCategory(f) === libraryFilterCategory;
@@ -1526,6 +1535,114 @@ export default function App() {
     }
   };
 
+  // ─── Mobile Premium UI/UX Interactions (Haptics, Store Badges, and Particle Fly) ───
+  const triggerHapticFeedback = () => {
+    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+      try {
+        window.navigator.vibrate([15]);
+      } catch (e) {
+        // Safe catch
+      }
+    }
+  };
+
+  const triggerFlyParticle = (e: any, category: string) => {
+    let clientX = window.innerWidth / 2;
+    let clientY = window.innerHeight / 2;
+
+    if (e) {
+      if (e.clientX !== undefined && e.clientX !== 0) {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      } else if (e.touches && e.touches[0]) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if (e.changedTouches && e.changedTouches[0]) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else if (e.target) {
+        try {
+          const rect = (e.target as HTMLElement).getBoundingClientRect();
+          clientX = rect.left + rect.width / 2;
+          clientY = rect.top + rect.height / 2;
+        } catch (err) {}
+      }
+    }
+
+    const id = Date.now() + Math.random();
+    let color = "#6366f1"; // Default indigo
+    const catClean = category || "其他";
+    if (catClean === "澱粉") color = "#f59e0b"; // amber/orange
+    if (catClean === "蛋白質") color = "#6366f1"; // indigo
+    if (catClean === "蔬菜") color = "#10b981"; // emerald
+    if (catClean === "飲料") color = "#0ea5e9"; // sky
+    if (catClean === "點心") color = "#ec4899"; // pink/rose
+    if (catClean === "水果") color = "#f43f5e"; // rose
+
+    setFlyParticles(prev => [...prev, { id, x: clientX, y: clientY, color }]);
+    setTimeout(() => {
+      setFlyParticles(prev => prev.filter(p => p.id !== id));
+    }, 850);
+  };
+
+  const renderFoodNameWithHighlight = (name: string, searchQuery: string) => {
+    const matchStore = name.match(/^\[(7-11|全家)\]\s*/i);
+    let storeTag: string | null = null;
+    let cleanName = name;
+    if (matchStore) {
+      storeTag = matchStore[1];
+      cleanName = name.slice(matchStore[0].length);
+    }
+
+    const queryTokens = searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+    const highlightText = (text: string, tokens: string[]) => {
+      if (tokens.length === 0 || !text) return <span>{text}</span>;
+      const usefulTokens = tokens.filter(t => t !== "超商");
+      if (usefulTokens.length === 0) return <span>{text}</span>;
+
+      const escapedTokens = usefulTokens.map(t => t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'));
+      const pattern = new RegExp(`(${escapedTokens.join('|')})`, 'gi');
+      const parts = text.split(pattern);
+
+      return (
+        <>
+          {parts.map((part, index) => {
+            const isMatch = usefulTokens.some(token => token.toLowerCase() === part.toLowerCase());
+            return isMatch ? (
+              <mark
+                key={index}
+                className="bg-amber-400/25 text-amber-200 underline decoration-amber-400/60 decoration-2 underline-offset-2 px-1 rounded-sm font-extrabold select-none"
+              >
+                {part}
+              </mark>
+            ) : (
+              <span key={index}>{part}</span>
+            );
+          })}
+        </>
+      );
+    };
+
+    return (
+      <span className="inline-flex items-center flex-wrap gap-1 min-w-0">
+        {storeTag === "7-11" && (
+          <span className="inline-flex items-center gap-1 bg-gradient-to-r from-emerald-950/55 to-orange-950/45 border border-emerald-500/35 text-emerald-300 font-extrabold text-[9px] px-2 py-0.5 rounded-md tracking-wider mr-1 shrink-0 select-none shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shrink-0" />
+            7-11
+          </span>
+        )}
+        {storeTag === "全家" && (
+          <span className="inline-flex items-center gap-1 bg-gradient-to-r from-sky-950/55 to-emerald-950/45 border border-sky-500/35 text-sky-300 font-extrabold text-[9px] px-2 py-0.5 rounded-md tracking-wider mr-1 shrink-0 select-none shadow-[0_0_10px_rgba(14,165,233,0.1)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            全家
+          </span>
+        )}
+        <span className="truncate">{highlightText(cleanName, queryTokens)}</span>
+      </span>
+    );
+  };
+
   // Add from Food Library directly to today
   const addLibItemToToday = (record: MealRecord, category: string) => {
     const dateNow = Date.now();
@@ -2049,11 +2166,12 @@ export default function App() {
                     prev.setDate(prev.getDate() - 1);
                     setCurrentDate(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}-${String(prev.getDate()).padStart(2, "0")}`);
                   }}
-                  className="bg-white/[0.04] hover:bg-white/[0.08] active:scale-95 border border-white/[0.05] text-zinc-200 text-zinc-300 w-9 h-9 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-colors"
+                  className="bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 border border-white/[0.05] text-zinc-300 w-11 h-11 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all shrink-0"
+                  title="前一天"
                 >
-                  ‹
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="text-center sm:text-left">
+                <div className="text-center sm:text-left min-w-[120px]">
                   <span className="text-[10px] text-zinc-400 font-bold tracking-wider block uppercase">當前記錄日期</span>
                   <span className="text-sm font-extrabold text-zinc-100">{formatFriendlyDate(currentDate)} ({currentDate})</span>
                 </div>
@@ -2064,9 +2182,10 @@ export default function App() {
                     next.setDate(next.getDate() + 1);
                     setCurrentDate(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`);
                   }}
-                  className="bg-white/[0.04] hover:bg-white/[0.08] active:scale-95 border border-white/[0.05] text-zinc-200 text-zinc-300 w-9 h-9 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-colors"
+                  className="bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 border border-white/[0.05] text-zinc-300 w-11 h-11 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all shrink-0"
+                  title="後一天"
                 >
-                  ›
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
 
@@ -3355,7 +3474,9 @@ export default function App() {
                                       />
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                          <h4 className="font-extrabold text-xs sm:text-sm text-zinc-100 truncate max-w-[140px] sm:max-w-[180px]">{isGrp ? "": ""}{f.name}</h4>
+                                          <div className="text-xs sm:text-sm text-zinc-100 font-extrabold flex items-center flex-wrap gap-1 min-w-0">
+                                            {renderFoodNameWithHighlight(f.name, librarySearchQuery)}
+                                          </div>
                                           <span className={`text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full border shrink-0 ${catColors[itemCat] || "bg-zinc-800 text-zinc-400 border-zinc-750"}`}>
                                             {itemCat}
                                           </span>
@@ -3390,8 +3511,12 @@ export default function App() {
                                       {["早餐", "午餐", "晚餐", "點心"].map((cat) => (
                                         <button
                                           key={cat}
-                                          onClick={() => addLibItemToToday(f, cat)}
-                                          className="flex-1 bg-black/50 hover:bg-indigo-600 border border-zinc-850 hover:border-indigo-500 text-zinc-400 hover:text-white text-[10px] font-bold py-1.5 rounded transition-all cursor-pointer text-center"
+                                          onClick={(e) => {
+                                            triggerHapticFeedback();
+                                            triggerFlyParticle(e, f.category || "其他");
+                                            addLibItemToToday(f, cat);
+                                          }}
+                                          className="flex-1 bg-black/50 hover:bg-indigo-600 active:scale-95 border border-zinc-850 hover:border-indigo-500 text-zinc-400 hover:text-white text-[10px] font-bold py-1.5 rounded transition-all cursor-pointer text-center"
                                         >
                                           {cat}
                                         </button>
@@ -4070,9 +4195,18 @@ export default function App() {
 
       {/* ────────────────── MODAL: ADD FOOD ────────────────── */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end items-center md:justify-center">
-          <div className="bg-zinc-950 border-t md:border border-zinc-800 rounded-t-3xl md:rounded-3xl w-full max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 shadow-2xl">
-            <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-850/60 bg-zinc-900/20">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex flex-col justify-end items-center md:justify-center" onClick={() => {
+          setShowAddModal(false);
+          setAddModalTargetGroupIndex(undefined);
+        }}>
+          <div 
+            className="bg-zinc-950 border-t md:border border-zinc-800 rounded-t-[2rem] md:rounded-3xl w-full max-w-[500px] max-h-[92vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag handle indicator for mobile sheet style */}
+            <div className="w-12 h-1 bg-zinc-850 rounded-full mx-auto my-3 md:hidden shrink-0" />
+
+            <div className="flex justify-between items-center px-6 pb-4 pt-2 md:py-5 border-b border-zinc-850/60 bg-zinc-900/20">
               <h3 className="text-[15px] font-black text-zinc-100 tracking-wide">
                 {addModalTargetGroupIndex !== undefined ? `新增項目至 ${addModalCategory}` : `新增食物至 ${addModalCategory}`}
               </h3>
@@ -4081,11 +4215,37 @@ export default function App() {
                   setShowAddModal(false);
                   setAddModalTargetGroupIndex(undefined);
                 }}
-                className="text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 p-2 rounded-full transition-colors"
+                className="text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 w-9 h-9 flex items-center justify-center rounded-full transition-colors"
+                title="關閉"
               >
                 <X className="w-4 h-4"/>
               </button>
             </div>
+
+            {/* Horizontal Category Pill Selector for quick category toggle in the Modal */}
+            {addModalTargetGroupIndex === undefined && (
+              <div className="px-6 py-3 bg-zinc-900/40 border-b border-zinc-850/60 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+                <span className="text-[10px] text-zinc-500 font-extrabold tracking-wider uppercase whitespace-nowrap mr-1">選擇餐次:</span>
+                {["早餐", "午餐", "晚餐", "點心"].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setAddModalCategory(cat)}
+                    className={`text-xs font-bold py-1.5 px-3.5 rounded-full transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 flex items-center gap-1.5 ${
+                      addModalCategory === cat
+                        ? "bg-indigo-600/20 border border-indigo-500/50 text-indigo-400 font-black"
+                        : "bg-zinc-900 border border-zinc-800/80 text-zinc-400 hover:text-zinc-300"
+                    }`}
+                  >
+                    {cat === "早餐" && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
+                    {cat === "午餐" && <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />}
+                    {cat === "晚餐" && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />}
+                    {cat === "點心" && <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />}
+                    <span>{cat}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Modal Tabs */}
             <div className="flex border-b border-zinc-850/60 px-4 py-3 gap-2 bg-zinc-900/30">
@@ -4159,7 +4319,15 @@ export default function App() {
                           category: f.category
                         })) : [];
                         const combinedFoods = [...db.foods, ...storeFoodsMapped];
-                        const filtered = combinedFoods.filter((f) => f.name.toLowerCase().includes(quickSearchQuery.toLowerCase()));
+                        const queryTokens = quickSearchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
+                         const filtered = combinedFoods.filter((f) => {
+                           return queryTokens.length === 0 || queryTokens.every(token => {
+                             const nameLower = f.name.toLowerCase();
+                             if (nameLower.includes(token)) return true;
+                             if (token === "超商" && (nameLower.includes("7-11") || nameLower.includes("全家"))) return true;
+                             return false;
+                           });
+                         });
                         
                         if (filtered.length === 0) {
                           return (
@@ -4175,19 +4343,23 @@ export default function App() {
                           return (
                             <div 
                               key={f.id || idx}
-                              onClick={() => {
+                              onClick={(e) => {
+                                triggerHapticFeedback();
+                                triggerFlyParticle(e, f.category || "其他");
                                 addLibItemToToday(f, addModalCategory);
                                 setShowAddModal(false);
                               }}
-                              className="bg-black/50 hover:bg-zinc-850/50 border border-zinc-850 rounded-xl p-3 flex justify-between items-center cursor-pointer transition-colors"
+                              className="bg-black/50 hover:bg-zinc-850/50 active:bg-zinc-800/40 border border-zinc-850 rounded-xl p-3 flex justify-between items-center cursor-pointer transition-all active:scale-[0.98]"
                             >
-                              <div>
-                                <span className="text-xs font-bold text-zinc-300 block">{"type"in f && f.type === "group"? "": ""}{f.name}</span>
-                                <span className="text-[10px] text-zinc-400 block mt-0.5">
+                              <div className="min-w-0 flex-1 pr-2">
+                                <span className="text-xs font-bold text-zinc-300 block flex items-center flex-wrap gap-1">
+                                  {renderFoodNameWithHighlight(f.name, quickSearchQuery)}
+                                </span>
+                                <span className="text-[10px] text-zinc-400 block mt-1">
                                   蛋白 {getRecordMacros(f).protein}g · 碳水 {getRecordMacros(f).carb}g · 脂肪 {getRecordMacros(f).fat}g
                                 </span>
                               </div>
-                              <span className="text-xs font-black text-indigo-400 pr-1">{itemKcal} kcal</span>
+                              <span className="text-xs font-black text-indigo-400 pr-1 shrink-0">{itemKcal} kcal</span>
                             </div>
                           );
                         });
@@ -5069,6 +5241,31 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* ────────────────── FLY PARTICLES MICRO-INTERACTION ────────────────── */}
+      <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden">
+        {flyParticles.map((p) => (
+          <motion.div
+            key={p.id}
+            initial={{ x: p.x - 8, y: p.y - 8, opacity: 1, scale: 0.8 }}
+            animate={{
+              x: [p.x - 8, (p.x + window.innerWidth / 2) / 2 - 45, window.innerWidth / 2 - 8],
+              y: [p.y - 8, (p.y + 70) / 2 - 60, 70],
+              opacity: [1, 0.95, 0],
+              scale: [0.8, 1.8, 0.2],
+            }}
+            transition={{
+              duration: 0.8,
+              ease: "easeInOut",
+            }}
+            className="absolute w-4.5 h-4.5 rounded-full blur-[0.5px]"
+            style={{
+              backgroundColor: p.color,
+              boxShadow: `0 0 16px ${p.color}, 0 0 32px ${p.color}`,
+            }}
+          />
+        ))}
+      </div>
 
       {/* ────────────────── GLOBAL TOAST NOTIFICATION ────────────────── */}
       <AnimatePresence>
